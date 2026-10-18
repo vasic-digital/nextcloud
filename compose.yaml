@@ -1,0 +1,177 @@
+# ---------------------------------------------------------------------------
+#  Nextcloud on Podman — LAN-only, no domain, no public exposure.
+#
+#    db     MariaDB 11    the Nextcloud database
+#    redis  Redis 7       distributed cache, transactional file locking,
+#                         PHP session store
+#    app    Nextcloud 35  Apache + mod_php web front end  (publishes the port)
+#    cron   Nextcloud 35  background-job runner (busybox crond, every 5 min)
+#
+#  Only `app` publishes a port, and it is bound to NEXTCLOUD_BIND
+#  (0.0.0.0 by default) so other machines on the LAN can reach it. Nothing is
+#  reachable from the internet unless you deliberately forward the port on
+#  your router — this stack contains no reverse proxy, no ACME client and no
+#  tunnel.
+#
+#  All configuration lives in .env, which `./setup.sh` generates with random
+#  secrets and which is never committed. See README.md for the full reference.
+# ---------------------------------------------------------------------------
+
+name: nextcloud
+
+# Shared defaults for every service.
+x-common: &common
+  restart: unless-stopped
+  networks:
+    - nextcloud
+
+# Nextcloud application image, shared by the `app` and `cron` services so the
+# two can never drift apart in version.
+x-nextcloud-image: &nextcloud-image docker.io/library/nextcloud:35-apache
+
+services:
+  # -------------------------------------------------------------------------
+  # Database
+  # -------------------------------------------------------------------------
+  db:
+    <<: *common
+    image: docker.io/library/mariadb:11
+    container_name: nextcloud-db
+    command:
+      # Nextcloud's own documentation recommends these for InnoDB:
+      - --transaction-isolation=READ-COMMITTED
+      - --binlog-format=ROW
+      - --innodb-buffer-pool-size=${DB_INNODB_BUFFER_POOL:-512M}
+      # Skip reverse DNS lookups; the network is a private bridge.
+      - --skip-name-resolve
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+      MARIADB_DATABASE: ${DB_NAME:-nextcloud}
+      MARIADB_USER: ${DB_USER:-nextcloud}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      # Apply the MariaDB image's own minor-version upgrades on start.
+      MARIADB_AUTO_UPGRADE: "1"
+      TZ: ${TZ:-UTC}
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # -------------------------------------------------------------------------
+  # Redis — cache, file locking and PHP sessions
+  # -------------------------------------------------------------------------
+  redis:
+    <<: *common
+    image: docker.io/library/redis:7-alpine
+    container_name: nextcloud-redis
+    command:
+      - redis-server
+      # Persist at most once a minute: the cache is disposable, so we keep
+      # AOF off and accept a possible cold cache after an unclean shutdown.
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # Nextcloud web front end — the only service that publishes a port
+  # -------------------------------------------------------------------------
+  app:
+    <<: *common
+    image: *nextcloud-image
+    container_name: nextcloud-app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      # host bind : host port : container port
+      # The container serves plain HTTP on port 80; 8080 is only the host side.
+      - "${NEXTCLOUD_BIND:-0.0.0.0}:${NEXTCLOUD_PORT:-8080}:80"
+    environment:
+      # --- database ---------------------------------------------------------
+      MYSQL_HOST: db
+      MYSQL_DATABASE: ${DB_NAME:-nextcloud}
+      MYSQL_USER: ${DB_USER:-nextcloud}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      # --- redis ------------------------------------------------------------
+      # REDIS_HOST also makes the entrypoint install redis as the PHP session
+      # handler, which is what gives us reliable session locking.
+      REDIS_HOST: redis
+      REDIS_HOST_PORT: "6379"
+      # --- first-run administrator -----------------------------------------
+      # These are read only when the data volume is still empty. Changing them
+      # later has no effect; use `./setup.sh occ user:resetpassword`.
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:?set NEXTCLOUD_ADMIN_USER in .env}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD:?set NEXTCLOUD_ADMIN_PASSWORD in .env}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS:?set NEXTCLOUD_TRUSTED_DOMAINS in .env}
+      # --- PHP / Apache limits ---------------------------------------------
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-512M}
+      PHP_UPLOAD_LIMIT: ${PHP_UPLOAD_LIMIT:-16G}
+      # 0 disables Apache's request-body limit so large uploads are never
+      # truncated before PHP sees them.
+      APACHE_BODY_LIMIT: ${APACHE_BODY_LIMIT:-0}
+      TZ: ${TZ:-UTC}
+      # --- consumed by our before-starting hook -----------------------------
+      DEFAULT_PHONE_REGION: ${DEFAULT_PHONE_REGION:-}
+      NEXTCLOUD_OVERWRITE_CLI_URL: ${NEXTCLOUD_OVERWRITE_CLI_URL:-}
+    volumes:
+      # Program files, config.php, apps and themes.
+      - html:/var/www/html
+      # User data. Kept as a separate volume so backups can treat the
+      # (irreplaceable) user files independently from the (rebuildable) code.
+      - data:/var/www/html/data
+      # Idempotent configuration applied on every start.
+      - ./config/nextcloud-hooks:/docker-entrypoint-hooks.d:ro
+
+  # -------------------------------------------------------------------------
+  # Background jobs
+  #
+  # Nextcloud's default "AJAX cron" only runs jobs when somebody loads a page.
+  # A dedicated service running the image's own /cron.sh (busybox crond using
+  # the bundled www-data crontab, every 5 minutes) is the recommended setup and
+  # keeps previews, trash cleanup, federation and mail notifications working
+  # even when nobody is logged in.
+  # -------------------------------------------------------------------------
+  cron:
+    <<: *common
+    image: *nextcloud-image
+    container_name: nextcloud-cron
+    entrypoint: /cron.sh
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - html:/var/www/html
+      - data:/var/www/html/data
+
+volumes:
+  html:
+    name: nextcloud-html
+  data:
+    name: nextcloud-data
+  db:
+    name: nextcloud-db
+  redis:
+    name: nextcloud-redis
+
+networks:
+  nextcloud:
+    name: nextcloud-net
+    driver: bridge
