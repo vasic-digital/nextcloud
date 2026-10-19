@@ -1,9 +1,10 @@
 # Nextcloud on Podman — private LAN instance, no domain required
 
 A self-contained Nextcloud deployment that runs on **rootless Podman** and is
-reachable **only from your local network**. There is no domain, no TLS
-certificate, no reverse proxy and no inbound exposure to the internet — the
-whole point is a personal cloud on your own LAN.
+reachable **only from your local network**. There is no domain and no inbound
+exposure to the internet — the whole point is a personal cloud on your own LAN.
+It is served over plain HTTP on `:8280` and over HTTPS (self-signed, HTTP/3
+capable) on `:52443` through a Caddy front end.
 
 Everything is driven by two files you can read in a few minutes: `compose.yaml`
 (the stack) and `setup.sh` (a wrapper that removes the error-prone manual
@@ -75,12 +76,17 @@ $ ./setup.sh
 | `redis` | `redis:7-alpine` | Cache, file locking, PHP sessions |
 | `cron` | `nextcloud:35-apache` | Runs `cron.php` every 5 minutes |
 
-- **One published port:** `0.0.0.0:8080 → app:80`. The database and Redis are
-  reachable *only* on the private bridge network — they are not published to
-  the host at all.
-- **No domain, no TLS.** Nextcloud is served over plain HTTP. It works from any
-  browser on your LAN with no certificate warnings, because nothing is
-  pretending to be a public service.
+- **Two published ports:** `0.0.0.0:8280 → app:80` (plain HTTP) and
+  `0.0.0.0:52443 → caddy:443` (HTTPS, TCP+UDP for HTTP/3). The database and
+  Redis are reachable *only* on the private bridge network — they are not
+  published to the host at all. (`8280`, not `8080`, because `8080` is taken by
+  `code-server` on this host; change it with `NEXTCLOUD_PORT` in `.env`.)
+- **No domain.** HTTPS uses a self-signed certificate that `./setup.sh`
+  generates into `tls/` (SANs: `localhost`, `127.0.0.1`, the host name,
+  `<host>.local`, the LAN IP and everything in `NEXTCLOUD_TRUSTED_DOMAINS`) and
+  regenerates when a name or the LAN IP changes. Browsers warn once; import
+  `tls/site.crt` as a trusted certificate to silence it. Plain HTTP on `:8280`
+  keeps working.
 - **Idempotent.** Running `./setup.sh up` twice does not create a second stack,
   and never regenerates secrets that already exist.
 - **Backup and restore are first-class**, not a README recipe: `./setup.sh
@@ -186,11 +192,9 @@ lease, different network, moving to Wi-Fi), Nextcloud will start answering with
 ### Desktop and mobile clients
 
 Point the official Nextcloud clients at the same URL, e.g.
-`http://192.168.1.139:8080`. They work over plain HTTP on a LAN. If you want
-them to trust the server without prompting, use the "self-signed certificate"
-setting in the client — but note there is no certificate here at all, because
-there is no TLS. Clients that mandate HTTPS will need a reverse proxy in front
-(see [Security posture](#security-posture)).
+`http://192.168.1.139:8280`, or at `https://192.168.1.139:52443` for clients
+that mandate HTTPS. For HTTPS, import `tls/site.crt` into the client/OS trust
+store (or accept the self-signed certificate once).
 
 ---
 
@@ -741,17 +745,18 @@ about the boundaries matters more than adding complexity:
 
 **What is not**
 
-- No public DNS record, no port forwarding, no reverse proxy, no TLS.
+- No public DNS record, no port forwarding, no publicly trusted certificate.
 - No `/var/run/docker.sock` mount. (This is why the `all-in-one` image was
   abandoned — see [Cleanup](#cleanup-leftovers-from-earlier-attempts).)
 - No rootful daemon: Podman runs rootless as your user.
 
 **Honest limitations — read these**
 
-1. **There is no TLS, so credentials travel in cleartext.** The login POST and
-   the session cookie are unprotected on the wire. On a wired home LAN this is
-   the same trust model as the rest of your LAN traffic. On a shared, untrusted
-   or public Wi-Fi it is not adequate.
+1. **Plain HTTP on `:8280` sends credentials in cleartext; use HTTPS on
+   `:52443` on anything but a trusted wired LAN.** The HTTPS certificate is
+   self-signed, so it gives you encryption but not identity until you import
+   `tls/site.crt` on your clients. To disable plain HTTP entirely, set
+   `NEXTCLOUD_BIND=127.0.0.1` for `app`'s port.
 2. **There is no host firewall on this machine** — `firewalld` and `ufw` are not
    installed. The only thing keeping the instance private is the bind address
    plus whatever your router does with inbound connections. Again: fine on a
@@ -765,9 +770,9 @@ about the boundaries matters more than adding complexity:
 
 **If you want to go further**, in ascending order of effort:
 
-- Add a firewall rule restricting port 8080 to your LAN subnet.
-- Put a TLS-terminating reverse proxy (Caddy, nginx) in front and restrict the
-  app to `127.0.0.1` via `NEXTCLOUD_BIND`, so only the proxy is reachable.
+- Add a firewall rule restricting ports 8280 and 52443 to your LAN subnet.
+- Restrict the app's plain-HTTP port to `127.0.0.1` so only Caddy (HTTPS) is
+  reachable from the LAN.
 - Then, and only then, consider exposing it beyond the LAN — at which point you
   should also review Nextcloud's hardening guide.
 
@@ -906,24 +911,19 @@ host is **not** touched, which is exactly why `config.tar.gz` is in it.
 This stack was exercised end-to-end rather than assumed to work. As of the last
 run:
 
-- **Stack** — all five containers healthy (`nextcloud-app`, `nextcloud-caddy`,
-  `nextcloud-db`, `nextcloud-redis`, `nextcloud-cron`); `nextcloud-app` publishing
-  `0.0.0.0:8080->80/tcp`, `nextcloud-caddy` publishing
-  `0.0.0.0:52080->80/tcp` (HTTP) and `0.0.0.0:52443->443/tcp+udp` (HTTPS/HTTP3).
-- **Web** — `http://localhost:8080/status.php` →
-  `{"installed":true,"maintenance":false,"needsDbUpgrade":false,"version":"35.0.2.2"}`
-  and the LAN address answers `200`.
-- **HTTPS via Caddy** — `https://localhost:52443/status.php` works with a
-  self-signed certificate (SAN: `localhost`, `127.0.0.1`, detected LAN IPs).
-  Certificate is generated on first start and persists in the `nextcloud-caddy-data`
-  volume.
-- **HTTP/3 (QUIC)** — Caddy serves `h1 h2 h3` protocols on `:443`. HTTP/3 is
-  enabled via QUIC over UDP. UDP port `52443` must be reachable (it is LAN-only).
-- **Brotli compression** — Caddy (`ueffel/caddy-brotli`) serves `zstd br gzip`
-  encoding, negotiated per the client's `Accept-Encoding` header.
-- **Nextcloud behind Caddy** — Nextcloud is accessible at
-  `https://<host>:52443/nextcloud` (note the `/nextcloud` path prefix).
-  The Caddyfile reverse proxies to `nextcloud-app:80`.
+- **Stack** — all five containers up (`nextcloud-app`, `nextcloud-caddy`,
+  `nextcloud-db`, `nextcloud-redis`, `nextcloud-cron`); `nextcloud-app` publishes
+  `0.0.0.0:8280->80/tcp`, `nextcloud-caddy` publishes `0.0.0.0:52443->443/tcp+udp`.
+- **Web (HTTP)** — `http://localhost:8280/status.php` →
+  `{"installed":true,"maintenance":false,"needsDbUpgrade":false,"version":"35.0.2.2"}`.
+- **HTTPS via Caddy** — `https://<name>:52443/` returns the login page (HTTP/2,
+  ~18 KB, certificate verified against `tls/site.crt`) for `localhost`,
+  `127.0.0.1`, `nezha`, `nezha.local` and the LAN IP. Nextcloud emits `https://`
+  URLs because Caddy's `X-Forwarded-Proto` is trusted (`TRUSTED_PROXIES`, see
+  [Reverse proxy](#reverse-proxy-caddy)). A WebDAV PUT/GET/DELETE round trip over
+  HTTPS lands the file on the host data path, and JS assets are served `br`.
+- **HTTP/3 (QUIC)** — `curl --http3-only https://localhost:52443/status.php`
+  → `200`, `http_version=3`. UDP `52443` must be reachable (LAN-only).
 - **Runtime caching** — resolved through Nextcloud's own `ICacheFactory`:
   local `APCu`, distributed and locking `Redis`, PHP session handler `redis`,
   with live `PHPREDIS_SESSION:*` keys present in Redis.
@@ -972,3 +972,28 @@ Redis 7.4.9, Podman 5.7.1 (rootless), Caddy 2 (ueffel/caddy-brotli:2),
 Versions in this run: Nextcloud 35.0.2.2 (PHP 8.5.11), MariaDB 11.8.9,
 Redis 7.4.9, Podman 5.7.1 (rootless), `podman-compose` 1.5.0, on ALT Starterkit
 11 (kernel 6.12.61).
+
+---
+
+## Reverse proxy (Caddy)
+
+`caddy` terminates TLS on `:443` (published as `52443`) and proxies everything
+to `nextcloud-app:80`. Three things make it work, and each one has failed before:
+
+1. **Everything lives inside a site block.** In a Caddyfile, a directive at the
+   top level (outside `{ … }` / `:443 { … }`) is parsed as a *site address*. A
+   flat file starting with `auto_https off` makes Caddy match only
+   `Host: auto_https` / `Host: off`; every real request then matches no route
+   and gets an **empty HTTP 200** — the "blank page". Check what Caddy really
+   understood with
+   `podman run --rm --entrypoint caddy -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" localhost/helixcode-caddy-brotli:2 adapt --config /etc/caddy/Caddyfile`.
+2. **The certificate is mounted at the path the Caddyfile names.** `./tls` →
+   `/etc/caddy/tls` (read-only). `./setup.sh up`/`restart` create it via
+   `ensure_tls`.
+3. **Nextcloud trusts the proxy.** `TRUSTED_PROXIES=10.89.0.0/16` (Podman's
+   default bridge pool) is set as an environment variable on `app`; never use
+   `occ` for it. `overwriteprotocol` is deliberately *not* set, so plain HTTP on
+   `:8280` keeps working alongside HTTPS.
+
+Nextcloud is served at the root (`https://<host>:52443/`), not under
+`/nextcloud`.

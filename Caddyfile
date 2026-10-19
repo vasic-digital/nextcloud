@@ -1,12 +1,22 @@
-# Do NOT use auto HTTPS management — use our custom self-signed cert with proper SANs
-auto_https off
+# TLS terminator for the LAN-only Nextcloud stack.
+#
+# Everything below the global block MUST live inside a site block. Directives
+# at the top level of a Caddyfile are parsed as a *site address*: the earlier
+# flat layout made Caddy match only `Host: auto_https` / `Host: off`, so every
+# real request fell through all routes and got an empty HTTP 200.
+{
+	# No ACME, no automatic redirects: the certificate is the self-signed one
+	# that `./setup.sh` generates into ./tls (mounted read-only below).
+	auto_https off
+}
 
-# Self-signed cert with SANs: localhost, 127.0.0.1, nezha.local, amber.local, anton.local, and LAN IPs
-tls /etc/caddy/tls/site.crt /etc/caddy/tls/site.key
+:443 {
+	tls /etc/caddy/tls/site.crt /etc/caddy/tls/site.key
 
-# Brotli compression (provided by helixcode-caddy-brotli image)
-encode zstd br gzip
+	# zstd/br/gzip (Brotli comes from the helixcode-caddy-brotli image).
+	encode zstd br gzip
 
-# Nextcloud reverse proxy
-@nextcloud path /nextcloud /nextcloud*
-reverse_proxy nextcloud-app:80
+	# Caddy sets X-Forwarded-For/-Proto/-Host itself. Nextcloud honours them
+	# because the proxy's address is listed in TRUSTED_PROXIES (compose.yaml).
+	reverse_proxy nextcloud-app:80
+}

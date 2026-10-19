@@ -194,6 +194,69 @@ ensure_env() {
 }
 
 # ---------------------------------------------------------------------------
+# TLS certificate for the Caddy front end
+# ---------------------------------------------------------------------------
+
+TLS_DIR="tls"
+
+# Self-signed certificate for ./Caddyfile. Idempotent: it is only regenerated
+# when missing or when it no longer covers a host name / IP we would be
+# reached by (e.g. the LAN address changed). Names come from
+# NEXTCLOUD_TRUSTED_DOMAINS plus the detected LAN IP and host name, so the
+# certificate and Nextcloud's trusted domains cannot drift apart.
+ensure_tls() {
+    require_cmd openssl
+
+    local host lan_ip name want=() san="" have
+    host="$(hostname 2>/dev/null || echo nextcloud)"
+    lan_ip="$(detect_lan_ip)"
+
+    for name in localhost 127.0.0.1 "$host" "${host}.local" "$lan_ip" \
+                $(env_get NEXTCLOUD_TRUSTED_DOMAINS); do
+        [ -n "$name" ] || continue
+        # De-duplicate while keeping order.
+        case " ${want[*]:-} " in *" $name "*) continue ;; esac
+        want+=("$name")
+    done
+
+    for name in "${want[@]}"; do
+        # Anything that looks like an IPv4/IPv6 literal is an IP SAN, the rest DNS.
+        if [[ "$name" =~ ^[0-9]+(\.[0-9]+){3}$ ]] || [[ "$name" == *:* ]]; then
+            san="${san:+$san,}IP:${name}"
+        else
+            san="${san:+$san,}DNS:${name}"
+        fi
+    done
+
+    if [ -r "$TLS_DIR/site.crt" ] && [ -r "$TLS_DIR/site.key" ] \
+        && openssl x509 -checkend 2592000 -noout -in "$TLS_DIR/site.crt" >/dev/null 2>&1; then
+        have="$(openssl x509 -noout -ext subjectAltName -in "$TLS_DIR/site.crt" 2>/dev/null)"
+        local missing=0 token
+        for token in ${san//,/ }; do
+            # openssl prints IP SANs as "IP Address:x".
+            case "$have" in *"${token/IP:/IP Address:}"*) ;; *) missing=1 ;; esac
+        done
+        if [ "$missing" -eq 0 ]; then
+            ok "TLS certificate in $TLS_DIR/ is valid and covers all names"
+            return 0
+        fi
+        warn "TLS certificate does not cover every current name/IP — regenerating"
+    fi
+
+    step "Generating self-signed TLS certificate ($TLS_DIR/site.crt)"
+    mkdir -p "$TLS_DIR"
+    ( umask 077
+      openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 825 \
+          -subj "/CN=${host}" -addext "subjectAltName=${san}" \
+          -keyout "$TLS_DIR/site.key" -out "$TLS_DIR/site.crt" >/dev/null 2>&1 ) \
+        || die "openssl failed to generate the TLS certificate."
+    # The Caddy container runs as the mapped host user; keep the key private
+    # but make the pair readable for that mapping.
+    chmod 0644 "$TLS_DIR/site.crt"; chmod 0600 "$TLS_DIR/site.key"
+    ok "valid for: ${san//,/, }"
+}
+
+# ---------------------------------------------------------------------------
 # Preflight
 # ---------------------------------------------------------------------------
 
@@ -242,6 +305,7 @@ preflight() {
     ok "container hooks present and executable"
 
     mkdir -p backups
+    ensure_tls
 }
 
 # ---------------------------------------------------------------------------
@@ -432,6 +496,7 @@ cmd_down() {
 cmd_restart() {
     detect_compose
     step "Recreating containers to pick up configuration changes"
+    ensure_tls
     compose down
     compose up -d
     wait_for_web
@@ -563,6 +628,8 @@ newest_backup() {
 cmd_restore() {
     require_cmd podman
     detect_compose
+    # `compose up` below also starts caddy, whose ./tls bind mount must exist.
+    ensure_tls
 
     local backup_dir="${1:-}" dbname answer
     if [ -z "$backup_dir" ]; then

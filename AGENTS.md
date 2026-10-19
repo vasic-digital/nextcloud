@@ -6,14 +6,17 @@ hard to notice.
 
 ## What this repository is
 
-A private, **LAN-only** Nextcloud instance on **rootless Podman**, with no domain
-and no TLS. There is no public exposure and adding one is out of scope.
+A private, **LAN-only** Nextcloud instance on **rootless Podman**, with no domain.
+HTTPS is provided by a Caddy front end with a **self-signed** certificate. There
+is no public exposure and adding one (public DNS, ACME, port forwarding) is out
+of scope.
 
 The stack is a compose project (`compose.yaml`) driven by `setup.sh`:
 
 | Service | Image | Notes |
 | --- | --- | --- |
-| `app` | `nextcloud:35-apache` | only service with a published port (`8080 → 80`) |
+| `app` | `nextcloud:35-apache` | plain HTTP, published `${NEXTCLOUD_PORT:-8080} → 80` (`.env` here uses `8280`: `8080`/`8081` belong to code-server / helix-auth) |
+| `caddy` | `localhost/helixcode-caddy-brotli:2` | TLS terminator, published `52443 → 443` tcp+udp (HTTP/3); proxies to `app:80` |
 | `db` | `mariadb:11` | **not** published to the host |
 | `redis` | `redis:7-alpine` | cache + file locking + PHP sessions; **not** published |
 | `cron` | same image as `app` | `entrypoint: /cron.sh` |
@@ -107,6 +110,24 @@ Both directions use busybox tar in a throwaway `alpine:3` container:
   stripping, into the `html` volume.
 
 Breaking either convention silently restores files to the wrong depth.
+
+### 9. `Caddyfile`: no top-level directives, and the cert path must be mounted
+
+- Directives outside a `{ … }` global block or a site block are parsed as a
+  **site address**. A flat file starting with `auto_https off` makes Caddy match
+  only `Host: auto_https`/`off`, so real requests match no route and get an
+  **empty HTTP 200** (the "blank page"). Keep the `{ auto_https off }` global
+  block and the `:443 { … }` site block.
+- `tls /etc/caddy/tls/site.crt …` only works because compose mounts `./tls`
+  there; `setup.sh ensure_tls` generates it. Do not point `tls` at a path that no
+  mount provides.
+- Verify structure with `caddy adapt` (see README → *Reverse proxy*) before
+  concluding anything about Nextcloud or Apache.
+- Nextcloud learns it is behind HTTPS via `TRUSTED_PROXIES` (env, in
+  `compose.yaml`). Do **not** set `overwriteprotocol`: it would break plain HTTP.
+  The keys `trustedProxies.*` and `overwrite.protocol` do not exist in Nextcloud;
+  the real ones are `trusted_proxies` and `overwriteprotocol`.
+- Nextcloud is served at `/`, never under a `/nextcloud` prefix.
 
 ## Conventions to preserve
 
