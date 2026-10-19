@@ -1,0 +1,105 @@
+
+== t08-backup-restore: backup, restore, destroy, restore-from-nothing
+  PASS  precondition: the stack is healthy (180 ms)
+  PASS  instance id looks sane
+  PASS  MKCOL fixture directory
+  PASS  PUT a.txt
+  PASS  PUT bin.dat (1 MiB)
+  PASS  PUT unicode name
+  PASS  MKCOL nested
+  PASS  PUT nested/deep.txt
+  PASS  PUT del.txt
+  PASS  create a Nextcloud user BEFORE the backup (database content)
+  PASS  that user exists
+  PASS  database has a full Nextcloud schema
+  PASS  backup --quiesce exits 0
+  PASS  output says it entered maintenance mode
+  PASS  output says it left maintenance mode
+  PASS  backup directory exists
+  PASS  backup directory is mode 0700
+  PASS  backup contains database.sql.gz
+  PASS  backup contains data.tar.gz
+  PASS  backup contains config.tar.gz
+  PASS  backup contains env.backup
+  PASS  env.backup is mode 0600
+  PASS  systemd.backup holds the unit templates
+  PASS  database.sql.gz is a valid gzip
+  PASS  data.tar.gz is a valid archive
+  PASS  database dump contains the schema
+  PASS  database dump contains the user created before the backup
+  PASS  data archive contains the fixture file
+  PASS  config archive contains config/config.php (instanceid, secret, salt)
+  PASS  maintenance mode is OFF after the backup
+  PASS  the config.php inside the quiesced backup was captured before maintenance mode began
+  PASS  …and is NOT flagged 'maintenance' => true
+  PASS  stack healthy after the backup
+  PASS  overwrite a.txt
+  PASS  add b.txt (did not exist at backup time)
+  PASS  delete del.txt
+  PASS  create a second user AFTER the backup
+  PASS  mutation visible: a.txt is version TWO
+  PASS  mutation visible: b.txt exists
+  PASS  mutation visible: del.txt gone
+  PASS  truncated data.tar.gz: restore refuses (non-zero)
+  PASS  …and names the corrupt archive
+  PASS  missing env.backup: restore refuses
+  PASS  …saying the set is incomplete
+  PASS  config archive without config.php: restore refuses
+  PASS  …explaining config.php is required
+  PASS  wrong confirmation word: aborted
+  PASS  …and says nothing was restored
+  PASS  non-existent backup directory is refused
+  PASS  all refusals left the data directory untouched (entry count)
+  PASS  …and did not recreate any container
+  PASS  …and the mutated state is still there (a.txt is still version TWO)
+  PASS  an incomplete newer directory is ignored by newest_backup
+  PASS  backup with the database down fails
+  PASS  …and leaves no partial backup directory behind
+  PASS  stack healthy again after the failed-backup experiment (145 ms)
+  PASS  restore exits 0
+  PASS  archives were verified first
+  PASS  the previous .env was saved
+  PASS  restore completed
+  PASS  stack healthy after the restore (201 ms)
+  PASS  the restored instance is NOT in maintenance mode
+  PASS  SAME Nextcloud instance (instance id from the restored config.php)
+  PASS  a.txt is back to version ONE (API)
+  PASS  a.txt is version ONE on the host disk
+  PASS  bin.dat restored byte-identical
+  PASS  nested file restored
+  PASS  del.txt is back
+  PASS  b.txt (created after the backup) is gone
+  PASS  the user created before the backup exists
+  PASS  the user created after the backup is gone
+  PASS  database has the same number of tables
+  PASS  the administrator can log in with the credentials from the backup
+  PASS  a saved copy of the previous .env exists (mode 0600)
+  PASS  ownership: no entry in the data directory belongs to another user
+  PASS  ownership: no file in any volume belongs to a sub-uid
+  PASS  status reports ownership ok
+  PASS  plain backup exits 0
+  PASS  the second backup is a different directory
+  PASS  the second backup is a complete set
+  PASS  plain backup does not touch maintenance mode
+  PASS  destroy exits 0
+  PASS  destroy: no nextcloud container remains
+  PASS  destroy: all four named volumes are gone
+  PASS  destroy: the network is gone
+  PASS  destroy never deletes the user data directory
+  PASS  destroy keeps .env
+  PASS  up after destroy is REFUSED while the data directory is not empty
+  PASS  …with a clear explanation
+  PASS  …and started nothing
+  PASS  restore from nothing exits 0
+  PASS  stack healthy after restore-from-nothing (195 ms)
+  PASS  SAME instance id after destroy + restore
+  PASS  a.txt is version ONE
+  PASS  bin.dat byte-identical
+  PASS  the user from the backup exists
+  PASS  administrator login works
+  PASS  database has the same number of tables
+  PASS  ownership: no entry in the data directory belongs to another user
+  PASS  ownership: no file in any volume belongs to a sub-uid
+  PASS  cron is running again
+  PASS  app container reports healthy (its healthcheck passes) (17416 ms)
+-- t08-backup-restore: 102 passed, 0 failed, 0 skipped (328546 ms)

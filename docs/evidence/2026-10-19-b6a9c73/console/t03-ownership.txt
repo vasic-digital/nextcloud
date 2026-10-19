@@ -1,0 +1,99 @@
+
+== t03: ownership: processes and files belong to the invoking user
+  PASS  invoking uid is numeric and non-zero
+  PASS  uid inside the user namespace is numeric
+  PASS  nextcloud-db has running processes
+  PASS  every process of nextcloud-db runs as host uid 1000
+  PASS  nextcloud-redis has running processes
+  PASS  every process of nextcloud-redis runs as host uid 1000
+  PASS  nextcloud-app has running processes
+  PASS  every process of nextcloud-app runs as host uid 1000
+  PASS  nextcloud-caddy has running processes
+  PASS  every process of nextcloud-caddy runs as host uid 1000
+  PASS  caddy's container-root maps to the invoking uid
+  PASS  nextcloud-cron has running processes
+  PASS  cron has its documented sub-uid supervisor processes (exception is exercised)
+  PASS  cron: every non-invoking process is container-root running /run/podman-init or busybox crond
+  PASS  cron: no process runs as host root (uid 0)
+  PASS  cron: the exception covers one sub-uid only
+  PASS  cron: all job children (everything but init/crond) run as the invoking uid
+  PASS  negative control: the exception filter would flag a non-root process in a sub-uid
+  PASS  account name for app resolved
+  PASS  image app: account www-data ids read from the image
+  PASS  nextcloud-app UserNS ids equal the image account's ids
+  PASS  account name for cron resolved
+  PASS  image cron: account www-data ids read from the image
+  PASS  nextcloud-cron UserNS ids equal the image account's ids
+  PASS  account name for db resolved
+  PASS  image db: account mysql ids read from the image
+  PASS  nextcloud-db UserNS ids equal the image account's ids
+  PASS  account name for redis resolved
+  PASS  image redis: account redis ids read from the image
+  PASS  nextcloud-redis UserNS ids equal the image account's ids
+  PASS  negative control: a wrong account name does not resolve in the image
+  PASS  data dir holds at least 5 entries (tree is not trivially empty)
+  PASS  data dir: entries not owned by uid 1000
+  PASS  data dir: entries not in group gid 1000
+  PASS  .run holds at least 3 entries (tree is not trivially empty)
+  PASS  .run: entries not owned by uid 1000
+  PASS  .run: entries not in group gid 1000
+  PASS  tls holds at least 2 entries (tree is not trivially empty)
+  PASS  tls: entries not owned by uid 1000
+  PASS  tls: entries not in group gid 1000
+  PASS  backups holds at least 1 entries (tree is not trivially empty)
+  PASS  backups: entries not owned by uid 1000
+  PASS  backups: entries not in group gid 1000
+  PASS  Quadlet files present
+  PASS  Quadlet files not owned by uid 1000
+  PASS  negative control: find -not -user detects a different owner (uid 1001 check on a tree we own)
+  PASS  volume nextcloud-html has a mountpoint
+  PASS  volume nextcloud-html holds entries
+  PASS  volume nextcloud-html: entries not owned by the invoking user
+  PASS  volume nextcloud-html: entries not in the invoking user's group
+  PASS  volume nextcloud-db has a mountpoint
+  PASS  volume nextcloud-db holds entries
+  PASS  volume nextcloud-db: entries not owned by the invoking user
+  PASS  volume nextcloud-db: entries not in the invoking user's group
+  PASS  volume nextcloud-redis has a mountpoint
+  PASS  volume nextcloud-redis holds entries
+  PASS  volume nextcloud-redis: entries not owned by the invoking user
+  PASS  volume nextcloud-redis: entries not in the invoking user's group
+  PASS  volume nextcloud-caddy-data has a mountpoint
+  PASS  volume nextcloud-caddy-data holds entries
+  PASS  volume nextcloud-caddy-data: entries not owned by the invoking user
+  PASS  volume nextcloud-caddy-data: entries not in the invoking user's group
+  PASS  html volume has the 'data' mount-point directory
+  PASS  html volume's data mount-point is owned by the invoking user
+  PASS  foreign_owned is false for the data dir
+  PASS  foreign_owned is false for volume nextcloud-html
+  PASS  foreign_owned is false for volume nextcloud-db
+  PASS  foreign_owned is false for volume nextcloud-redis
+  PASS  foreign_owned is false for volume nextcloud-caddy-data
+  PASS  negative control prepared: the temp dir really has a sub-uid owner on the host
+  PASS  foreign_owned is TRUE for a deliberately foreign-owned tree
+  PASS  foreign_owned is false for a tree created by the user itself
+  PASS  the temporary foreign tree was removed
+  PASS  admin files dir exists on the host
+  PASS  host-created file belongs to the invoking user
+  PASS  container (www-data) sees the host file as its own account's uid
+  PASS  container modifies the host-created file
+  PASS  the host sees the container's modification
+  PASS  container creates a file inside the host-created dir
+  PASS  container deletes the host-created file
+  PASS  the host file is gone after the container deleted it
+  PASS  container removes the host-created dir (with its content)
+  PASS  the host dir is gone
+  PASS  container creates a file and a dir
+  PASS  container-created file is owned by the invoking user on the host
+  PASS  container-created dir is owned by the invoking user on the host
+  PASS  container-created nested file is owned by the invoking user
+  PASS  host modifies the container-created file
+  PASS  container reads the host's edit
+  PASS  host deletes the container-created file and dir
+  PASS  container no longer sees the deleted entries
+  PASS  temporary write-through dir removed
+  PASS  status prints the Ownership section
+  PASS  status: data dir reports 0 entries not owned
+  PASS  status: no volume reports foreign-owned files
+  PASS  status: all four volumes report ok
+-- t03: 96 passed, 0 failed, 0 skipped (15099 ms)

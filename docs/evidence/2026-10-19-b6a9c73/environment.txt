@@ -1,0 +1,60 @@
+started:      2026-10-19T22:55:34Z
+host:         nezha   kernel 6.12.61-6.12-alt1
+user:         milosvasic (uid 1000, gid 1000)
+ns uid map:    0 1000 1; 1 100000 65536;
+podman:       podman version 5.7.1
+systemd:      systemd 258 (258.5-alt1)
+quadlet:      /usr/libexec/podman/quadlet
+git commit:   b6a9c73 on main  (working tree: 0 uncommitted paths)
+options:      quick=0 non-destructive=0 only='' skip=''
+
+--- unit states
+nextcloud-network.service    active (exited)
+nextcloud-db.service         active (running)
+nextcloud-redis.service      active (running)
+nextcloud-app.service        active (running)
+nextcloud-cron.service       active (running)
+nextcloud-caddy.service      active (running)
+
+--- containers and images
+nextcloud-app  docker.io/library/nextcloud:35-apache  Up About a minute (healthy)
+nextcloud-caddy  localhost/nextcloud-caddy-brotli:2  Up About a minute (healthy)
+nextcloud-cron  docker.io/library/nextcloud:35-apache  Up About a minute (healthy)
+nextcloud-db  docker.io/library/mariadb:11  Up 2 minutes (healthy)
+nextcloud-redis  docker.io/library/redis:7-alpine  Up 2 minutes (healthy)
+
+--- image digests
+docker.io/library/mariadb:11  c1d04d5c27cfe84c85c8b11684d121b93df541ee2ccfdf62f72f2ac4ff37f762
+docker.io/library/nextcloud:35-apache  45450fd662d647be0fa27a0832241b6e6280f3c576b04c697145e368ce0909ab
+docker.io/library/redis:7-alpine  487efc0616382465781b8fdc3d6d1db449e6fd80ae23bf48432a2da6b6929908
+localhost/nextcloud-caddy-brotli:2  7c54cfbf2f8d47132466d1814b02fe61c48ae77d750382d2d653017230bac09e
+
+--- sha256 of the code under test
+6fcd7da5195c79335229ce56728ae8ca1d804a606e5b10b23b43562359fd0161  setup.sh
+9c350cd2d27d764c4703b3a9522d32e03500dc0d8a4bd06ca1c65980b3255097  Caddyfile
+026b110198d0fbe61882dc6f2741c0086d89afa5fc9c81911e9ce1022d4c66d1  docker/caddy/Containerfile
+de41a48e7ddd57f0ed38615755d9da3c3bdaedb81140090de3208686c9a57b41  systemd/nextcloud-app.container.in
+67fcb9d427b975078eb03992b13ab94d1bac4b097c1a4261ce8e03387b8a11aa  systemd/nextcloud-caddy.container.in
+a429f5b872fc1235e64e859f36bc31f7cd673cdb58036a0291b7a1f3d63a3c25  systemd/nextcloud-cron.container.in
+8777f44504e094e52c177e6b33051c8f4f5fb6939169dee9fa10ce91abdf68db  systemd/nextcloud-db.container.in
+6ffed1781c7be2a3a8eda81567cfae8bb8cb6c845f2f7ff09acd3678fdffd311  systemd/nextcloud.network.in
+cc84961fd57cc3d2eea8a6f09d676d6ef5aad2cd161ffa81252c84c7cf9309fc  systemd/nextcloud-redis.container.in
+04a379f5287c19d05de8c5a8f9fed47a6db400ba2d1582f1b6ce6fe3f7a6d7d9  config/nextcloud-hooks/before-starting/10-nextcloud-tuning.sh
+035d2d611d4714c20c773f592489d68efb5b1361e9af5498728b58ddb35128d9  tests/lib.sh
+ded811a6042ba424835b084472a490c18b0ea1929042575dd8ec2ab141a7b5a6  tests/publish-evidence.sh
+5f85c49aafddb172c862213d8f08b7fc4fd59307cc9d5808b7fabe9d4756003b  tests/run-all.sh
+7f20faf2d44b9f80dfac820dde657792df6ece33a1c0de8ae6e011d362a0bb23  tests/smb-live-test.sh
+f62b44becf08b795ad7a50c69b431d4347e7bc0bccaafce6cab81d378a8b49b2  tests/t01-static.sh
+dfda8334cb0fb0ed28033ff88fb13ca6be5c6e6c62a68626a317a5eb13e5ac8d  tests/t02-units.sh
+62f9f7916f8ddbe36fd87b858499fbb1316d582e5fc4d6d4917e8fde9d63cfa7  tests/t03-ownership.sh
+bdf026eb463b910f464eadcd0c1653867e2a4565097edf31e679df119c301ef2  tests/t04-https.sh
+71c5649e42f4cc71967e6817087463daa43aeea0ac499214ecee129f2cf4043c  tests/t05-smb.sh
+ec5310c11eb5fe9a99652123ddb5ff0051d580708b15548f1d6ec70bf2b5c88b  tests/t06-nextcloud.sh
+1e5c7f0135651e9ad81e0484c6d4748e85153a5f1eb19a33b677785727f6cb11  tests/t07-resilience.sh
+575b805dcdf7e0ff6b5237b27609f26f4fa57573fd9000f1283b6bd0ff287b5b  tests/t08-backup-restore.sh
+e57991fec07ddfde8869d6360010916b48d352cb701e53cab194920f8fbe2cc4  tests/t09-dynamic.sh
+b2075044322f81ba2c1947494695f5b93a450e89190219521f09c04bddc101dd  tests/t10-security.sh
+add2045984993f863fc1fc75f077aafd3dcc5c6c354430cc4ae2112b3c9b87a2  tests/t11-docs.sh
+60e3518159dccd609f3f92e5cbe8c984d4c04b278ec405f2e0679bd9dfa197cf  tests/report.py
+ac16811cb3ad6df45becc712f4b2d630d63e98234b77a2e71f0370267cf77b67  .env.example
+finished:     2026-10-19T23:10:06Z

@@ -1,0 +1,77 @@
+
+== t04-https: HTTPS front end (Caddy), certificate, HTTP/2+3, compression
+  PASS  [localhost] TLS verification result is 0 (cert covers this name)
+  PASS  [localhost] /login ends in HTTP 200
+  PASS  [localhost] negotiated HTTP version is 2
+  PASS  [localhost] /login body is not empty/blank-page sized (>1000 bytes)
+  PASS  [127.0.0.1] TLS verification result is 0 (cert covers this name)
+  PASS  [127.0.0.1] /login ends in HTTP 200
+  PASS  [127.0.0.1] negotiated HTTP version is 2
+  PASS  [127.0.0.1] /login body is not empty/blank-page sized (>1000 bytes)
+  PASS  [nezha] TLS verification result is 0 (cert covers this name)
+  PASS  [nezha] /login ends in HTTP 200
+  PASS  [nezha] negotiated HTTP version is 2
+  PASS  [nezha] /login body is not empty/blank-page sized (>1000 bytes)
+  PASS  [nezha.local] TLS verification result is 0 (cert covers this name)
+  PASS  [nezha.local] /login ends in HTTP 200
+  PASS  [nezha.local] negotiated HTTP version is 2
+  PASS  [nezha.local] /login body is not empty/blank-page sized (>1000 bytes)
+  PASS  [192.168.1.139] TLS verification result is 0 (cert covers this name)
+  PASS  [192.168.1.139] /login ends in HTTP 200
+  PASS  [192.168.1.139] negotiated HTTP version is 2
+  PASS  [192.168.1.139] /login body is not empty/blank-page sized (>1000 bytes)
+  PASS  negative control: name not in certificate is rejected (curl rc=60)
+  PASS  served certificate fingerprint equals tls/site.crt (SHA-256)
+  PASS  the same certificate is served for every SNI name (5 names)
+  PASS  cert SAN contains DNS localhost
+  PASS  cert SAN contains IP 127.0.0.1
+  PASS  cert SAN contains DNS nezha
+  PASS  cert SAN contains DNS nezha.local
+  PASS  cert SAN contains IP 192.168.1.139
+  PASS  certificate is valid for more than 30 more days
+  PASS  certificate has a not-yet-expired validity start
+  PASS  RSA key is at least 2048 bits
+  PASS  certificate signature algorithm is not SHA-1/MD5
+  PASS  unknown Host header still reaches Nextcloud: body is non-empty
+  PASS  regression: no 0-byte HTTP 200 for an unmatched Host (got 400, 14226B)
+  PASS  unknown Host header is refused by Nextcloud as untrusted domain (400)
+  PASS  untrusted-domain page is rendered by Nextcloud
+  PASS  GET / is a redirect to /login (not an empty 200)
+  PASS  status.php body is non-empty
+  PASS  /login page identifies as Nextcloud
+  PASS  /login page contains a login form/markers
+  PASS  found a /dist/*.js asset URL in the login HTML
+  PASS  asset (identity) is a real file (>1000 bytes)
+  PASS  identity request is served uncompressed
+  PASS  Accept-Encoding: br -> content-encoding: br
+  PASS  brotli body (1644562 B) smaller than identity (5785882 B)
+  PASS  Accept-Encoding: gzip -> content-encoding: gzip
+  PASS  gzip body (1217320 B) smaller than identity (5785882 B)
+  PASS  Accept-Encoding: zstd -> content-encoding: zstd
+  PASS  brotli-decoded asset equals the identity asset
+  PASS  HTTP/3: status 200 over QUIC
+  PASS  HTTP/3: negotiated HTTP version is 3
+  PASS  HTTP/3: status.php reports installed
+  PASS  UDP listener for HTTP/3 exists on the HTTPS port
+  PASS  TCP listener exists on the HTTPS port
+  PASS  alt-svc header advertises h3
+  PASS  response passed through Caddy (Via header)
+  PASS  HTTPS login page contains no http:// link to its own host
+  PASS  HTTPS redirect from / stays on https://
+  PASS  HTTPS /.well-known/caldav redirect does not downgrade to http:// (CalDAV discovery)
+  PASS  HTTPS /.well-known/carddav redirect does not downgrade to http:// (CardDAV discovery)
+  PASS  podman network nextcloud-net has a subnet
+  PASS  occ trusted_proxies[0] equals the nextcloud-net subnet
+  PASS  overwriteprotocol is NOT set (plain HTTP keeps working)
+  PASS  plain HTTP status.php: installed:true
+  PASS  plain HTTP status.php: maintenance:false
+  PASS  plain HTTP /login is a real Nextcloud page
+  PASS  plain HTTP page does not force https:// links to its own host
+  PASS  plain HTTP redirect from / stays on http://
+  PASS  no plaintext HTTP is served on the TLS port (client sees no Nextcloud over http://)
+  PASS  caddy publishes 443/tcp
+  PASS  caddy publishes 443/udp (HTTP/3)
+  PASS  caddy publishes nothing for port 80
+  PASS  port 80 on loopback does not answer
+  PASS  20 sequential HTTPS /status.php requests are all 200
+-- t04-https: 74 passed, 0 failed, 0 skipped (9129 ms)

@@ -1,0 +1,2 @@
+  ok TLS certificate in tls/ is valid and covers all names
+fail no such backup directory: /tmp/.private/milosvasic/nextcloud-test.zBWVX5/does-not-exist

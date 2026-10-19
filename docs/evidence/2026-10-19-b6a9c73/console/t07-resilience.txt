@@ -1,0 +1,69 @@
+
+== t07-resilience: lifecycle, self-healing, boot order, uninstall/reinstall
+  PASS  precondition: the stack is healthy (184 ms)
+  PASS  up on a running stack exits 0
+  PASS  up does not recreate any container (ids unchanged)
+  PASS  up on an unchanged stack reports no configuration drift
+  PASS  after editing .env, up warns that a restart is needed
+  PASS  the running instance still has the OLD value (nothing applied silently)
+  PASS  restart exits 0
+  PASS  stack healthy after restart (153 ms)
+  PASS  restart applied the new value through .env -> app.env -> hook
+  PASS  no drift reported once applied
+  PASS  stack healthy after reverting (195 ms)
+  PASS  reverted value is back
+  PASS  marker file uploaded through Nextcloud
+  PASS  app: killed (SIGKILL) -> systemd restarts the unit (restart counter increases) (4143 ms)
+  PASS  app: stack healthy again after the automatic restart (4298 ms)
+  PASS  app: systemd counted the automatic restart
+  PASS  app: it is a NEW process (the old pid is gone)
+  PASS  app: the file survived the crash
+  PASS  redis: killed (SIGKILL) -> systemd restarts the unit (restart counter increases) (4130 ms)
+  PASS  redis: stack healthy again after the automatic restart (10542 ms)
+  PASS  redis: systemd counted the automatic restart
+  PASS  redis: it is a NEW process (the old pid is gone)
+  PASS  redis: the file survived the crash
+  PASS  database restart: all five units active and web healthy again (4233 ms)
+  PASS  data intact after the database restart
+  PASS  database answers (information_schema reachable)
+  PASS  cron stop took 340 ms
+  PASS  cron stops in under 5 s (it used to take 10 s and be SIGKILLed)
+  PASS  cron stop recorded as success
+  PASS  no failed nextcloud units after stopping cron
+  PASS  cron active again (19 ms)
+  PASS  down exits 0
+  PASS  down: no unit is active
+  PASS  down: no nextcloud container remains
+  PASS  all units started from a cold start in reverse-dependency order
+  PASS  web healthy after the cold start (3121 ms)
+  PASS  wants links: the generator enrols every service in default.target (boot start)
+  PASS  linger is enabled (services start at boot without a login)
+  PASS  file still there after a full stop/start
+  PASS  uninstall exits 0
+  PASS  uninstall: no nextcloud unit files remain
+  PASS  uninstall: systemd no longer knows nextcloud-app.service
+  PASS  uninstall: no container remains
+  PASS  uninstall kept the html volume
+  PASS  uninstall kept the database volume
+  PASS  uninstall kept .env and the certificate
+  PASS  uninstall kept the user data
+  PASS  uninstall removed the generated env files
+  PASS  a stand-in listener holds the HTTP port (1121 ms)
+  PASS  up refuses while the HTTP port is taken (non-zero exit)
+  PASS  the message names the port as in use
+  PASS  nothing was started (no nextcloud container)
+  PASS  up (reinstall) exits 0
+  PASS  the legacy compose-style container was reported removed
+  PASS  nextcloud-cron is now owned by its Quadlet unit
+  PASS  an unrelated nextcloud-* container was NOT touched
+  PASS  stack healthy after reinstall (195 ms)
+  PASS  same Nextcloud instance after uninstall + up (instance id)
+  PASS  file still there after uninstall + reinstall
+  PASS  reinstall: no restart loop (NRestarts of app is 0 on a fresh start)
+  PASS  install refuses a relative DATA_HOST_PATH
+  PASS  message explains: absolute path required
+  PASS  install refuses the placeholder password 'change-me'
+  PASS  message names the placeholder
+  PASS  refused installs did not touch the running stack
+  PASS  stack is still healthy at the end
+-- t07-resilience: 66 passed, 0 failed, 0 skipped (209194 ms)

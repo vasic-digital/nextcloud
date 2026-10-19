@@ -1,0 +1,80 @@
+  ok TLS certificate in tls/ is valid and covers all names
+  ok backup archives verified
+warn This REPLACES the current instance — user files, the database and
+warn config.php — with the contents of:
+warn   /run/media/milosvasic/DATA4TB/Projects/nextcloud/backups/20261020-010739
+warn Everything in this directory will be DELETED first:
+warn   /run/media/milosvasic/DATA4TB/Nextcloud/Data
+warn The current contents are lost. Take a backup first if you want them.
+
+Type RESTORE to confirm: ==> Applying the backup's credentials to .env
+  ok previous .env saved as .env.pre-restore.20261020-010756
+  ok database and administrator credentials taken from the backup
+==> Clearing the old instance (containers and volumes; caddy's certificate state is kept)
+  ok containers and the html/db/redis volumes removed
+  ok caddy image localhost/nextcloud-caddy-brotli:2 present
+  ok systemd user units installed in /home/milosvasic/.config/containers/systemd
+==> Emptying the data directory /run/media/milosvasic/DATA4TB/Nextcloud/Data
+  ok all stack files are owned by milosvasic
+  ok data directory emptied (the backup's user files are restored below)
+==> Creating volumes and containers from scratch
+==> Waiting for the database to accept connections
+  ok database is healthy (after 0s)
+==> Waiting for Nextcloud to finish installing (up to 600s)
+    ... still installing (0s)
+    ... still installing (5s)
+    ... still installing (10s)
+    ... still installing (15s)
+    ... still installing (20s)
+    ... still installing (25s)
+    ... still installing (30s)
+  ok web interface is up and reported as installed (after 35s)
+==> Stopping the web services while data is written
+  ok caddy, app and cron stopped (database and redis stay up)
+==> Replacing the database
+  ok database imported from database.sql.gz
+==> Restoring user data
+  ok user files restored into data directory
+==> Restoring config.php
+  ok config.php restored into nextcloud-html
+==> Starting the web services again
+==> Waiting for Nextcloud to finish installing (up to 600s)
+    ... still installing (0s)
+  ok web interface is up and reported as installed (after 5s)
+==> Removing the first-install administrator credentials from the app environment
+==> Waiting for Nextcloud to finish installing (up to 600s)
+    ... still installing (0s)
+  ok web interface is up and reported as installed (after 5s)
+  ok the app container no longer carries the administrator password
+==> Verifying the restored instance
+  ok instance id   oclqegaopsjn
+  ok user accounts 2
+
+Restore complete.
+Log in with the administrator credentials from the restored backup:
+
+Administrator  admin
+Password       <redacted>
+
+
+  Nextcloud is ready
+
+  HTTPS (recommended, self-signed certificate)
+    On this machine   https://localhost:52443
+    From the LAN      https://192.168.1.139:52443
+    By host name      https://nezha:52443
+  Plain HTTP
+    On this machine   http://localhost:8080
+    From the LAN      http://192.168.1.139:8080
+
+  Administrator     admin
+  Password          <redacted>
+  Credentials file  /run/media/milosvasic/DATA4TB/Projects/nextcloud/.env
+
+  Keep this password: it is stored in .env and nowhere else.
+
+  Useful next steps
+    ./setup.sh occ status
+    ./setup.sh status
+    systemctl --user status nextcloud-app
+    ./setup.sh down

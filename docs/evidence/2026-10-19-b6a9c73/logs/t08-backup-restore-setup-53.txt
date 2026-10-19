@@ -1,0 +1,4 @@
+==> Archiving config.php
+  ok config.tar.gz (36K)
+==> Dumping the database
+Error: no container with name or ID "nextcloud-db" found: no such container

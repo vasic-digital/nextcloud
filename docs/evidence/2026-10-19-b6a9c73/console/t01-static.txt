@@ -1,0 +1,126 @@
+
+== t01: static analysis: syntax, templates, hard-coding, secrets, modes
+  PASS  bash -n setup.sh
+  PASS  bash -n tests/lib.sh
+  PASS  bash -n tests/publish-evidence.sh
+  PASS  bash -n tests/run-all.sh
+  PASS  bash -n tests/smb-live-test.sh
+  PASS  bash -n tests/t01-static.sh
+  PASS  bash -n tests/t02-units.sh
+  PASS  bash -n tests/t03-ownership.sh
+  PASS  bash -n tests/t04-https.sh
+  PASS  bash -n tests/t05-smb.sh
+  PASS  bash -n tests/t06-nextcloud.sh
+  PASS  bash -n tests/t07-resilience.sh
+  PASS  bash -n tests/t08-backup-restore.sh
+  PASS  bash -n tests/t09-dynamic.sh
+  PASS  bash -n tests/t10-security.sh
+  PASS  bash -n tests/t11-docs.sh
+  PASS  sh -n (POSIX) on the container hook
+  PASS  negative control: bash -n rejects a broken script
+  PASS  shellcheck --severity=error setup.sh tests/*.sh
+  PASS  negative control: shellcheck flags a broken script
+  PASS  hook is executable (the entrypoint skips non-executable hooks)
+  PASS  hook mode has the owner exec bit and is not world-writable
+  PASS  hook directory config/nextcloud-hooks/pre-installation exists
+  PASS  hook directory config/nextcloud-hooks/post-installation exists
+  PASS  hook directory config/nextcloud-hooks/before-starting exists
+  PASS  hook directory config/nextcloud-hooks/pre-upgrade exists
+  PASS  hook directory config/nextcloud-hooks/post-upgrade exists
+  PASS  setup.sh substitutes at least 10 tokens (extraction sanity)
+  PASS  templates use at least 10 tokens (extraction sanity)
+  PASS  every @TOKEN@ in systemd/*.in is substituted by render_units
+  PASS  no unknown token in systemd/nextcloud-app.container.in
+  PASS  no unknown token in systemd/nextcloud-caddy.container.in
+  PASS  no unknown token in systemd/nextcloud-cron.container.in
+  PASS  no unknown token in systemd/nextcloud-db.container.in
+  PASS  no unknown token in systemd/nextcloud.network.in
+  PASS  no unknown token in systemd/nextcloud-redis.container.in
+  PASS  every token render_units substitutes is used by some template (no dead substitutions)
+  PASS  render_units renders every template into a throw-away dir
+  PASS  rendered file count equals template count
+  PASS  no @...@ placeholder left in any rendered unit
+  PASS  rendered counterpart exists: nextcloud-app.container
+  PASS  rendered counterpart exists: nextcloud-caddy.container
+  PASS  rendered counterpart exists: nextcloud-cron.container
+  PASS  rendered counterpart exists: nextcloud-db.container
+  PASS  rendered counterpart exists: nextcloud.network
+  PASS  rendered counterpart exists: nextcloud-redis.container
+  PASS  quadlet -dryrun -user succeeds on the rendered dir
+  PASS  quadlet generates nextcloud-db.service
+  PASS  quadlet generates nextcloud-redis.service
+  PASS  quadlet generates nextcloud-app.service
+  PASS  quadlet generates nextcloud-cron.service
+  PASS  quadlet generates nextcloud-caddy.service
+  PASS  quadlet generates nextcloud-network.service
+  PASS  negative control: quadlet rejects an invalid unit
+  PASS  live unit nextcloud-app.container matches what setup.sh renders now (not stale)
+  PASS  live unit nextcloud-caddy.container matches what setup.sh renders now (not stale)
+  PASS  live unit nextcloud-cron.container matches what setup.sh renders now (not stale)
+  PASS  live unit nextcloud-db.container matches what setup.sh renders now (not stale)
+  PASS  live unit nextcloud.network matches what setup.sh renders now (not stale)
+  PASS  live unit nextcloud-redis.container matches what setup.sh renders now (not stale)
+  PASS  no stray nextcloud* unit in /home/milosvasic/.config/containers/systemd without a template
+  PASS  negative control: diff detects a drifted unit
+  PASS  hard-coding audit: no forbidden literal (ids, user, paths, subnets, hostname, ports) outside the allowlist
+  PASS  audit scanned the expected set (setup.sh, 6 templates, Caddyfile, Containerfile, hook, tests)
+  PASS  negative control: audit detects [numeric-id]
+  PASS  negative control: audit detects [user-name]
+  PASS  negative control: audit detects [mount-path]
+  PASS  negative control: audit detects [subnet-10.89]
+  PASS  negative control: audit detects [lan-192.168]
+  PASS  negative control: audit detects [home-path]
+  PASS  negative control: audit detects [port-literal]
+  PASS  negative control: audit detects the host name
+  PASS  negative control: comments are not scanned
+  PASS  extracted at least 20 config keys read by the code (sanity)
+  PASS  extracted at least 20 keys from .env.example (sanity)
+  PASS  .env.example documents every key setup.sh / the hook / tests read
+  PASS  .env.example has no orphan key (every KEY= is read somewhere)
+  PASS  key NEXTCLOUD_MAINTENANCE_WINDOW_START is documented in .env.example
+  PASS  key NEXTCLOUD_OVERWRITE_CLI_URL is documented in .env.example
+  PASS  key DEFAULT_PHONE_REGION is documented in .env.example
+  PASS  key APP_UID is documented in .env.example
+  PASS  key APP_GID is documented in .env.example
+  PASS  key APP_RUN_USER is documented in .env.example
+  PASS  key DB_UID is documented in .env.example
+  PASS  key DB_GID is documented in .env.example
+  PASS  key DB_RUN_USER is documented in .env.example
+  PASS  key REDIS_UID is documented in .env.example
+  PASS  key REDIS_GID is documented in .env.example
+  PASS  key REDIS_RUN_USER is documented in .env.example
+  PASS  key NEXTCLOUD_IMAGE is documented in .env.example
+  PASS  key DB_IMAGE is documented in .env.example
+  PASS  key REDIS_IMAGE is documented in .env.example
+  PASS  key CADDY_IMAGE is documented in .env.example
+  PASS  key HELPER_IMAGE is documented in .env.example
+  PASS  negative control: key comparison reports a missing key
+  PASS  git check-ignore proves '.env' is ignored
+  PASS  git check-ignore proves '.env.local' is ignored
+  PASS  git check-ignore proves '.env.pre-restore.20260101-000000' is ignored
+  PASS  git check-ignore proves '.run/app.env' is ignored
+  PASS  git check-ignore proves '.run/db.env' is ignored
+  PASS  git check-ignore proves 'tls/site.key' is ignored
+  PASS  git check-ignore proves 'tls/site.crt' is ignored
+  PASS  git check-ignore proves 'backups/x/db.sql' is ignored
+  PASS  git check-ignore proves 'data/file' is ignored
+  PASS  negative control: git check-ignore does not ignore README.md
+  PASS  negative control: git check-ignore does not ignore .env.example
+  PASS  git ls-files contains no .env, .run/, tls/, backups/, data/ path
+  PASS  nothing sensitive is untracked-but-addable
+  PASS  collected live secret values to scan for (count only)
+  PASS  secret scan covers tracked + addable files
+  PASS  no live secret value appears in any tracked or addable working-tree file
+  PASS  negative control: the scanner finds a planted secret
+  PASS  .env is mode 600
+  PASS  .run directory is mode 700
+  PASS  .run/app.env is mode 600
+  PASS  .run/caddy.env is mode 600
+  PASS  .run/cron.env is mode 600
+  PASS  .run/db.env is mode 600
+  PASS  at least one generated .run/*.env exists
+  PASS  tls/site.key is mode 600
+  PASS  no compose file in the tree
+  PASS  setup.sh has no podman-compose / compose up invocation (comments excluded)
+  PASS  negative control: filter catches an uncommented podman-compose call
+-- t01: 123 passed, 0 failed, 0 skipped (18405 ms)

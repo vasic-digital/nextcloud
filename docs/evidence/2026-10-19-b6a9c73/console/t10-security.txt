@@ -1,0 +1,116 @@
+
+== t10: security posture
+  PASS  .env mode
+  PASS  .env owner
+  PASS  .run directory mode
+  PASS  .run holds env files
+  PASS  .run/app.env mode
+  PASS  .run/caddy.env mode
+  PASS  .run/cron.env mode
+  PASS  .run/db.env mode
+  PASS  tls/site.key mode
+  PASS  tls/site.key owner
+  PASS  tls/site.crt is readable and a valid certificate
+  PASS  negative control: the mode check would flag a world-readable file (tls/site.crt is not 600)
+  PASS  DB root password is configured (>= 16 chars)
+  PASS  admin password is configured (>= 12 chars)
+  PASS  positive control: db container env has MARIADB_ROOT_PASSWORD
+  PASS  positive control: db env value equals DB_ROOT_PASSWORD (comparison works)
+  PASS  nextcloud-app env does not contain the DB root password
+  PASS  nextcloud-app env does not contain the admin password
+  PASS  nextcloud-cron env does not contain the DB root password
+  PASS  nextcloud-cron env does not contain the admin password
+  PASS  nextcloud-caddy env does not contain the DB root password
+  PASS  nextcloud-caddy env does not contain the admin password
+  PASS  nextcloud-redis env does not contain the DB root password
+  PASS  nextcloud-redis env does not contain the admin password
+  PASS  db env does not contain the admin password
+  PASS  network subnet(s) discovered
+  PASS  app TRUSTED_PROXIES equals the nextcloud-net subnet(s)
+  PASS  TRUSTED_PROXIES has no catch-all (0.0.0.0/0, ::/0, /0)
+  PASS  negative control: the catch-all regex does match 0.0.0.0/0
+  PASS  nextcloud-db: podman port prints nothing
+  PASS  nextcloud-db: no PortBindings
+  PASS  nextcloud-db: no published ports in the container config
+  PASS  nextcloud-redis: podman port prints nothing
+  PASS  nextcloud-redis: no PortBindings
+  PASS  nextcloud-redis: no published ports in the container config
+  PASS  published host sockets are exactly 8080/tcp and 52443/tcp+udp
+  PASS  bind address is the configured one (0.0.0.0)
+  PASS  nextcloud-db is not privileged
+  PASS  nextcloud-db adds no capabilities
+  PASS  nextcloud-db has no devices
+  PASS  nextcloud-db does not use the host network
+  PASS  nextcloud-db does not share the host PID namespace
+  PASS  nextcloud-db does not share the host IPC namespace
+  PASS  nextcloud-db does not share the host user namespace
+  PASS  nextcloud-db has no unconfined security option
+  PASS  nextcloud-db mounts no container-engine socket
+  PASS  nextcloud-redis is not privileged
+  PASS  nextcloud-redis adds no capabilities
+  PASS  nextcloud-redis has no devices
+  PASS  nextcloud-redis does not use the host network
+  PASS  nextcloud-redis does not share the host PID namespace
+  PASS  nextcloud-redis does not share the host IPC namespace
+  PASS  nextcloud-redis does not share the host user namespace
+  PASS  nextcloud-redis has no unconfined security option
+  PASS  nextcloud-redis mounts no container-engine socket
+  PASS  nextcloud-app is not privileged
+  PASS  nextcloud-app adds no capabilities
+  PASS  nextcloud-app has no devices
+  PASS  nextcloud-app does not use the host network
+  PASS  nextcloud-app does not share the host PID namespace
+  PASS  nextcloud-app does not share the host IPC namespace
+  PASS  nextcloud-app does not share the host user namespace
+  PASS  nextcloud-app has no unconfined security option
+  PASS  nextcloud-app mounts no container-engine socket
+  PASS  nextcloud-cron is not privileged
+  PASS  nextcloud-cron adds no capabilities
+  PASS  nextcloud-cron has no devices
+  PASS  nextcloud-cron does not use the host network
+  PASS  nextcloud-cron does not share the host PID namespace
+  PASS  nextcloud-cron does not share the host IPC namespace
+  PASS  nextcloud-cron does not share the host user namespace
+  PASS  nextcloud-cron has no unconfined security option
+  PASS  nextcloud-cron mounts no container-engine socket
+  PASS  nextcloud-caddy is not privileged
+  PASS  nextcloud-caddy adds no capabilities
+  PASS  nextcloud-caddy has no devices
+  PASS  nextcloud-caddy does not use the host network
+  PASS  nextcloud-caddy does not share the host PID namespace
+  PASS  nextcloud-caddy does not share the host IPC namespace
+  PASS  nextcloud-caddy does not share the host user namespace
+  PASS  nextcloud-caddy has no unconfined security option
+  PASS  nextcloud-caddy mounts no container-engine socket
+  PASS  negative control: the socket regex does flag a docker.sock mount
+  PASS  every host bind mount is on the allowlist
+  PASS  Caddyfile, tls and the hooks are mounted read-only
+  PASS  allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/.run/redis-session.ini
+  PASS  allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/Caddyfile
+  PASS  allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/tls
+  PASS  allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/config/nextcloud-hooks
+  PASS  allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Nextcloud/Data
+  PASS  only the data dir and the session ini are writable host mounts
+  PASS  negative control: an arbitrary path is not allowlisted
+  PASS  Caddyfile serves nothing from the host filesystem (no file_server/root/browse)
+  PASS  Caddyfile only reverse-proxies
+  PASS  negative control: the file_server regex does detect it
+  PASS  TLS endpoint returned a certificate
+  PASS  the HTTPS endpoint presents the generated certificate (sha256)
+  PASS  plain HTTP is not offered on the HTTPS port
+  PASS  overwriteprotocol is not forced (plain HTTP must keep working)
+  PASS  trusted_proxies[0] equals the discovered subnet
+  PASS  lost_password_link is disabled
+  PASS  config.php is readable and sane
+  PASS  config.php has no bogus trustedProxies* keys
+  PASS  config.php has no bogus overwrite.protocol key
+  PASS  config.php does not force overwriteprotocol
+  PASS  negative control: the junk-key regex does detect 'trustedProxies.0'
+  PASS  no secret paths are tracked (.env, .run/, tls/, backups/)
+  PASS  git tracks files (the check is not vacuous)
+  PASS  .env is git-ignored
+  PASS  .run/app.env is git-ignored
+  PASS  tls/site.key is git-ignored
+  PASS  backups/x is git-ignored
+  PASS  negative control: a tracked file is not git-ignored
+-- t10: 113 passed, 0 failed, 0 skipped (13205 ms)

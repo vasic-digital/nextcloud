@@ -1,0 +1,227 @@
+
+== t09: dynamic: setup.sh functions with throw-away configuration
+  PASS  [APP] ground truth from the image is numeric (podman run id -u/-g www-data)
+  PASS  [APP] service_ids discovery equals ground truth (account www-data)
+  PASS  [APP] live unit UserNS= carries the discovered ids
+  PASS  [DB] ground truth from the image is numeric (podman run id -u/-g mysql)
+  PASS  [DB] service_ids discovery equals ground truth (account mysql)
+  PASS  [DB] live unit UserNS= carries the discovered ids
+  PASS  [REDIS] ground truth from the image is numeric (podman run id -u/-g redis)
+  PASS  [REDIS] service_ids discovery equals ground truth (account redis)
+  PASS  [REDIS] live unit UserNS= carries the discovered ids
+  PASS  negative control: discovery is not a constant (www-data/mysql ids differ from a bogus value)
+  PASS  render with APP_UID=4242 APP_GID=4343 succeeds
+  PASS  UserNS=keep-id:uid=4242,gid=4343 in nextcloud-app
+  PASS  UserNS=keep-id:uid=4242,gid=4343 in nextcloud-cron
+  PASS  db unit keeps its discovered ids
+  PASS  redis unit keeps its discovered ids
+  PASS  negative control: db/redis do NOT pick up the app override
+  PASS  quadlet -dryrun passes for the override variant
+  PASS  bogus APP_RUN_USER without ids: service_ids exits non-zero
+  PASS  bogus APP_RUN_USER: message names the account
+  PASS  bogus APP_RUN_USER: message tells how to fix (APP_RUN_USER / APP_UID and APP_GID)
+  PASS  both ids set: service_ids succeeds without touching the (nonexistent) image
+  PASS  both ids set: values come straight from the env file
+  PASS  negative control: without ids the nonexistent image makes service_ids fail
+  PASS  only APP_UID set: uid from env, gid from the image
+  PASS  service_ids rejects an unknown prefix
+  PASS  render variant: ports, bind, data path, images
+  PASS  app PublishPort is exactly 127.0.0.1:18080:80
+  PASS  caddy PublishPort tcp is exactly 127.0.0.1:18443:443/tcp
+  PASS  caddy PublishPort udp is exactly 127.0.0.1:18443:443/udp
+  PASS  caddy publishes exactly two ports
+  PASS  app publishes exactly one port
+  PASS  db and redis publish nothing
+  PASS  negative control: defaults leaked into the variant (no 8080/52443 mapping)
+  PASS  Volume= in app contains the data path
+  PASS  Volume= in cron contains the data path
+  PASS  Image= in app is the override
+  PASS  Image= in cron is the override
+  PASS  app and cron Image= lines are identical (no drift)
+  PASS  db Image= override
+  PASS  redis Image= override
+  PASS  caddy Image= override
+  PASS  all-ids variant: app uses 4001:4002
+  PASS  all-ids variant: cron uses 4001:4002
+  PASS  all-ids variant: db uses 4003:4004
+  PASS  all-ids variant: redis uses 4005:4006
+  PASS  the host user in the unit comments comes from id -un
+  PASS  EnvironmentFile points into the redirected run dir
+  PASS  project dir in Documentation= is this checkout
+  PASS  quadlet -dryrun passes for the ports/images/path variant
+  PASS  render with no port/bind/image overrides
+  PASS  defaults: app publishes DEFAULT_BIND:DEFAULT_HTTP_PORT
+  PASS  defaults: caddy publishes DEFAULT_HTTPS_PORT
+  PASS  defaults: data dir defaults to <project>/data
+  PASS  defaults: app Image= is DEFAULT_NEXTCLOUD_IMAGE
+  PASS  render with sed metacharacters in DATA_HOST_PATH
+  PASS  hostile path appears verbatim in the Volume= line
+  PASS  relative DATA_HOST_PATH is rejected (non-zero exit)
+  PASS  relative DATA_HOST_PATH: message says 'absolute'
+  PASS  relative DATA_HOST_PATH: message echoes the offending value
+  PASS  unset DATA_HOST_PATH defaults to <project>/data
+  PASS  default data path is absolute
+  PASS  absolute DATA_HOST_PATH is returned verbatim
+  PASS  env_get reads the file
+  PASS  env_get: the last duplicate wins
+  PASS  env_get keeps '=' inside values
+  PASS  env_get keeps inner spaces
+  PASS  env_get is anchored (T9_PREFIX does not match T9_PREFIXED)
+  PASS  env_get ignores the process environment (file is the single source)
+  PASS  env_or: file value beats the default
+  PASS  env_or: missing key -> default
+  PASS  env_or: empty value -> default
+  PASS  env_or: process env does not leak in (missing key -> default)
+  PASS  env_get on a missing env file prints nothing and succeeds
+  PASS  env_need returns the value
+  PASS  env_need on a missing key exits non-zero
+  PASS  env_need names the missing key
+  PASS  env_need on an empty key exits non-zero
+  PASS  image_of nextcloud -> DEFAULT_NEXTCLOUD_IMAGE when nothing is set
+  PASS  image_of db -> DEFAULT_DB_IMAGE when nothing is set
+  PASS  image_of redis -> DEFAULT_REDIS_IMAGE when nothing is set
+  PASS  image_of caddy -> DEFAULT_CADDY_IMAGE when nothing is set
+  PASS  image_of helper -> DEFAULT_HELPER_IMAGE when nothing is set
+  PASS  image_of nextcloud honours the env file
+  PASS  image_of db honours the env file
+  PASS  image_of redis honours the env file
+  PASS  image_of caddy honours the env file
+  PASS  image_of helper honours the env file
+  PASS  image_of with an unknown kind fails
+  PASS  image_of unknown kind: message names it
+  PASS  app_user default
+  PASS  app_user honours APP_RUN_USER
+  PASS  sed_esc round-trips: a|b&c\d
+  PASS  sed_esc round-trips: &&&
+  PASS  sed_esc round-trips: \\\
+  PASS  sed_esc round-trips: |||
+  PASS  sed_esc round-trips: x\1y
+  PASS  sed_esc round-trips: a/b/c
+  PASS  sed_esc round-trips: tab	here
+  PASS  sed_esc round-trips: $HOME `id` $(id)
+  PASS  sed_esc round-trips: it's
+  PASS  sed_esc round-trips: trail\
+  PASS  negative control: WITHOUT sed_esc the hostile string does not round-trip
+  PASS  probe_host: 0.0.0.0 -> 127.0.0.1
+  PASS  probe_host: :: -> 127.0.0.1
+  PASS  probe_host: [::] -> 127.0.0.1
+  PASS  probe_host: 192.0.2.77 -> 192.0.2.77
+  PASS  probe_host: 127.0.0.1 -> 127.0.0.1
+  PASS  probe_host: unset -> DEFAULT_BIND mapped to loopback
+  PASS  negative control: probe_host does not echo the wildcard
+  PASS  write_env_files with TRUSTED_PROXIES set
+  PASS  TRUSTED_PROXIES in app.env is written verbatim
+  PASS  write_env_files with empty TRUSTED_PROXIES
+  PASS  empty TRUSTED_PROXIES -> subnet(s) of the live nextcloud-net network
+  PASS  the discovered proxy value looks like a CIDR
+  PASS  negative control: discovered value differs from the explicit one
+  PASS  DB_PASSWORD=change-me is refused (non-zero)
+  PASS  DB_PASSWORD=change-me: message mentions the placeholder
+  PASS  DB_PASSWORD=change-me: nothing was written
+  PASS  DB_ROOT_PASSWORD=change-me is refused (non-zero)
+  PASS  DB_ROOT_PASSWORD=change-me: message mentions the placeholder
+  PASS  DB_ROOT_PASSWORD=change-me: nothing was written
+  PASS  NEXTCLOUD_ADMIN_PASSWORD=change-me is refused (non-zero)
+  PASS  NEXTCLOUD_ADMIN_PASSWORD=change-me: message mentions the placeholder
+  PASS  NEXTCLOUD_ADMIN_PASSWORD=change-me: nothing was written
+  PASS  an empty DB_PASSWORD is refused too
+  PASS  empty DB_PASSWORD: message names the key
+  PASS  write_env_files with custom DB_NAME / DB_USER
+  PASS  run dir mode is 700 (even under umask 022)
+  PASS  db.env exists with mode 600
+  PASS  app.env exists with mode 600
+  PASS  cron.env exists with mode 600
+  PASS  caddy.env exists with mode 600
+  PASS  redis-session.ini exists with mode 600
+  PASS  least privilege: app.env has no DB_ROOT_PASSWORD key
+  PASS  least privilege: app.env does not contain the root password VALUE
+  PASS  least privilege: db.env has no NEXTCLOUD_ADMIN_PASSWORD key
+  PASS  least privilege: db.env does not contain the admin password VALUE
+  PASS  least privilege: cron.env carries no password
+  PASS  least privilege: caddy.env carries no password
+  PASS  least privilege: cron.env does not contain any secret value
+  PASS  negative control: db.env DOES contain MARIADB_ROOT_PASSWORD
+  PASS  write_env_files for a FRESH instance (not installed yet)
+  PASS  fresh: app.env contains NEXTCLOUD_ADMIN_USER (needed by the installer)
+  PASS  fresh: app.env contains NEXTCLOUD_ADMIN_PASSWORD (needed by the installer)
+  PASS  write_env_files for an INSTALLED instance
+  PASS  installed: app.env has no NEXTCLOUD_ADMIN_PASSWORD key
+  PASS  installed: app.env has no NEXTCLOUD_ADMIN_USER key
+  PASS  installed: the admin password VALUE is in none of the env files
+  PASS  installed: everything else is still written (DB settings, proxies)
+  PASS  app.env MYSQL_PASSWORD equals DB_PASSWORD
+  PASS  db.env MARIADB_PASSWORD equals DB_PASSWORD
+  PASS  db.env MARIADB_ROOT_PASSWORD equals DB_ROOT_PASSWORD
+  PASS  DB_NAME flows into app.env MYSQL_DATABASE
+  PASS  DB_NAME flows into db.env MARIADB_DATABASE
+  PASS  DB_USER flows into app.env and db.env alike
+  PASS  TZ is the same across db/app/cron env files
+  PASS  caddy.env upstream is the app container on port 80
+  PASS  a second write_env_files preserves redis-session.ini content
+  PASS  ensure_env generates a fresh env file
+  PASS  generated env file is mode 600 (even under umask 022)
+  PASS  DB_PASSWORD is 48 hex characters
+  PASS  DB_ROOT_PASSWORD is 48 hex characters
+  PASS  NEXTCLOUD_ADMIN_PASSWORD is 48 hex characters
+  PASS  the three secrets are mutually distinct
+  PASS  no 'change-me' placeholder remains in any setting
+  PASS  DATA_HOST_PATH is absolute
+  PASS  DATA_HOST_PATH is <project>/data
+  PASS  trusted domains include localhost
+  PASS  trusted domains include 127.0.0.1
+  PASS  trusted domains include this host name (nezha)
+  PASS  trusted domains include the LAN IP
+  PASS  overwrite CLI URL uses this host name
+  PASS  TZ is set
+  PASS  generated file has exactly the keys of .env.example
+  PASS  ensure_env twice: file is byte-identical (never regenerates secrets)
+  PASS  ensure_env twice: says the file already exists
+  PASS  ensure_env twice: mode still 600
+  PASS  ensure_env generates a second, independent env
+  PASS  negative control: two generations produce different DB passwords
+  PASS  gen_secret yields 48 hex chars
+  PASS  ensure_tls generates a certificate into a temp TLS_DIR
+  PASS  SAN set equals localhost, 127.0.0.1, host, host.local, LAN ip and the trusted domains
+  PASS  key mode 600
+  PASS  cert mode 644
+  PASS  subject CN is the host name
+  PASS  cert is valid for at least 30 more days
+  PASS  key matches the certificate
+  PASS  idempotent: second run keeps the same cert
+  PASS  a cert that covers a superset of the wanted names is kept
+  PASS  trusted domain foo:8443 yields DNS:foo
+  PASS  no SAN keeps the port (DNS:foo:8443)
+  PASS  trusted domain 192.0.2.9:8443 yields IP:192.0.2.9
+  PASS  no SAN keeps the port on an IP either
+  PASS  a new trusted domain regenerates the cert
+  PASS  the regenerated cert has the new name
+  PASS  the regenerated cert keeps the old names
+  PASS  setup for look-alike: cert has IP:192.0.2.50
+  PASS  setup for look-alike: cert does NOT have IP:192.0.2.5
+  PASS  wanting 192.0.2.5 while the cert has 192.0.2.50 regenerates (exact match)
+  PASS  the new cert has IP:192.0.2.5
+  PASS  DNS look-alike (a.example vs aa.example) regenerates
+  PASS  a certificate expiring within 30 days is regenerated
+  PASS  unit_of db
+  PASS  unit_of redis
+  PASS  unit_of app
+  PASS  unit_of cron
+  PASS  unit_of caddy
+  PASS  unit_of network
+  PASS  unit_of x-y
+  PASS  SERVICES start order is db redis app cron caddy
+  PASS  every service has a template whose rendered name matches unit_of: db
+  PASS  every service has a template whose rendered name matches unit_of: redis
+  PASS  every service has a template whose rendered name matches unit_of: app
+  PASS  every service has a template whose rendered name matches unit_of: cron
+  PASS  every service has a template whose rendered name matches unit_of: caddy
+  PASS  is_legacy_container nextcloud-db is false for a Quadlet-managed container
+  PASS  is_legacy_container nextcloud-redis is false for a Quadlet-managed container
+  PASS  is_legacy_container nextcloud-app is false for a Quadlet-managed container
+  PASS  is_legacy_container nextcloud-cron is false for a Quadlet-managed container
+  PASS  is_legacy_container nextcloud-caddy is false for a Quadlet-managed container
+  PASS  negative control: a container that does not exist counts as non-Quadlet (legacy)
+  PASS  me_user / me_uid / me_gid come from id
+  PASS  detect_timezone honours TZ
+  PASS  network_subnets equals the live network (read-only)
+-- t09: 224 passed, 0 failed, 0 skipped (32418 ms)

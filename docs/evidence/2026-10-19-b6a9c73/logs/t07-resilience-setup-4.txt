@@ -1,0 +1,39 @@
+  ok .env already exists — leaving it untouched
+==> Preflight checks
+  ok podman version 5.7.1; systemd --user reachable; Quadlet at /usr/libexec/podman/quadlet
+  ok rootless podman
+  ok host port 8080 available (bind 0.0.0.0)
+  ok host port 52443 available (bind 0.0.0.0)
+  ok data directory /run/media/milosvasic/DATA4TB/Nextcloud/Data (owner: milosvasic)
+  ok container hooks present and executable
+  ok TLS certificate in tls/ is valid and covers all names
+  ok caddy image localhost/nextcloud-caddy-brotli:2 present
+  ok systemd user units installed in /home/milosvasic/.config/containers/systemd
+  ok linger enabled for milosvasic (services start at boot)
+  ok all stack files are owned by milosvasic
+warn the configuration changed since the services were started; run ./setup.sh restart to apply it.
+==> Starting the services (systemctl --user)
+==> Waiting for Nextcloud to finish installing (up to 600s)
+  ok web interface is up and reported as installed (after 0s)
+
+  Nextcloud is ready
+
+  HTTPS (recommended, self-signed certificate)
+    On this machine   https://localhost:52443
+    From the LAN      https://192.168.1.139:52443
+    By host name      https://nezha:52443
+  Plain HTTP
+    On this machine   http://localhost:8080
+    From the LAN      http://192.168.1.139:8080
+
+  Administrator     admin
+  Password          <redacted>
+  Credentials file  /run/media/milosvasic/DATA4TB/Projects/nextcloud/.env
+
+  Keep this password: it is stored in .env and nowhere else.
+
+  Useful next steps
+    ./setup.sh occ status
+    ./setup.sh status
+    systemctl --user status nextcloud-app
+    ./setup.sh down

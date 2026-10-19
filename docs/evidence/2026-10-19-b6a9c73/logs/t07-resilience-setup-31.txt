@@ -1,0 +1,2 @@
+==> Stopping the services (volumes and data are preserved)
+  ok stopped. Data is still in /run/media/milosvasic/DATA4TB/Nextcloud/Data and the nextcloud-* volumes

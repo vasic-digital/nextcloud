@@ -1,0 +1,2 @@
+  ok TLS certificate in tls/ is valid and covers all names
+fail /tmp/.private/milosvasic/nextcloud-test.zBWVX5/bad/data.tar.gz is corrupt.

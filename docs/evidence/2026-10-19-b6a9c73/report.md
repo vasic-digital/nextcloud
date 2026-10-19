@@ -1,0 +1,1175 @@
+# Test evidence report
+
+**Verdict: PASS** — 1064 passed, 0 failed, 0 skipped (1064 checks in 11 modules)
+
+| Module | Title | Pass | Fail | Skip | Time | Exit |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `t01` | static analysis: syntax, templates, hard-coding, secrets, modes | 123 | 0 | 0 | 18.4s | 0 |
+| `t09` | dynamic: setup.sh functions with throw-away configuration | 224 | 0 | 0 | 32.4s | 0 |
+| `t02` | systemd user units, containers, ports | 138 | 0 | 0 | 23.6s | 0 |
+| `t03` | ownership: processes and files belong to the invoking user | 96 | 0 | 0 | 15.1s | 0 |
+| `t10` | security posture | 113 | 0 | 0 | 13.2s | 0 |
+| `t04-https` | HTTPS front end (Caddy), certificate, HTTP/2+3, compression | 74 | 0 | 0 | 9.1s | 0 |
+| `t06-nextcloud` | Nextcloud functional: WebDAV, OCS, host disk, Redis, DB, cron | 77 | 0 | 0 | 156.3s | 0 |
+| `t05-smb` | SMB add/modify/remove against the live share | 12 | 0 | 0 | 55.1s | 0 |
+| `t07-resilience` | lifecycle, self-healing, boot order, uninstall/reinstall | 66 | 0 | 0 | 209.2s | 0 |
+| `t08-backup-restore` | backup, restore, destroy, restore-from-nothing | 102 | 0 | 0 | 328.5s | 0 |
+| `t11-docs` | documentation matches the code | 39 | 0 | 0 | 5.5s | 0 |
+
+## All checks
+
+### t01
+
+- ✅ bash -n setup.sh _(13 ms)_
+- ✅ bash -n tests/lib.sh _(11 ms)_
+- ✅ bash -n tests/publish-evidence.sh _(10 ms)_
+- ✅ bash -n tests/run-all.sh _(10 ms)_
+- ✅ bash -n tests/smb-live-test.sh _(11 ms)_
+- ✅ bash -n tests/t01-static.sh _(13 ms)_
+- ✅ bash -n tests/t02-units.sh _(15 ms)_
+- ✅ bash -n tests/t03-ownership.sh _(14 ms)_
+- ✅ bash -n tests/t04-https.sh _(13 ms)_
+- ✅ bash -n tests/t05-smb.sh _(13 ms)_
+- ✅ bash -n tests/t06-nextcloud.sh _(15 ms)_
+- ✅ bash -n tests/t07-resilience.sh _(13 ms)_
+- ✅ bash -n tests/t08-backup-restore.sh _(13 ms)_
+- ✅ bash -n tests/t09-dynamic.sh _(16 ms)_
+- ✅ bash -n tests/t10-security.sh _(14 ms)_
+- ✅ bash -n tests/t11-docs.sh _(13 ms)_
+- ✅ sh -n (POSIX) on the container hook _(12 ms)_
+- ✅ negative control: bash -n rejects a broken script _(14 ms)_
+- ✅ shellcheck --severity=error setup.sh tests/*.sh _(8907 ms)_
+- ✅ negative control: shellcheck flags a broken script _(11 ms)_
+- ✅ hook is executable (the entrypoint skips non-executable hooks) _(5 ms)_
+- ✅ hook mode has the owner exec bit and is not world-writable
+- ✅ hook directory config/nextcloud-hooks/pre-installation exists _(5 ms)_
+- ✅ hook directory config/nextcloud-hooks/post-installation exists _(5 ms)_
+- ✅ hook directory config/nextcloud-hooks/before-starting exists _(7 ms)_
+- ✅ hook directory config/nextcloud-hooks/pre-upgrade exists _(7 ms)_
+- ✅ hook directory config/nextcloud-hooks/post-upgrade exists _(6 ms)_
+- ✅ setup.sh substitutes at least 10 tokens (extraction sanity)
+- ✅ templates use at least 10 tokens (extraction sanity)
+- ✅ every @TOKEN@ in systemd/*.in is substituted by render_units
+- ✅ no unknown token in systemd/nextcloud-app.container.in
+- ✅ no unknown token in systemd/nextcloud-caddy.container.in
+- ✅ no unknown token in systemd/nextcloud-cron.container.in
+- ✅ no unknown token in systemd/nextcloud-db.container.in
+- ✅ no unknown token in systemd/nextcloud.network.in
+- ✅ no unknown token in systemd/nextcloud-redis.container.in
+- ✅ every token render_units substitutes is used by some template (no dead substitutions)
+- ✅ render_units renders every template into a throw-away dir _(2530 ms)_
+- ✅ rendered file count equals template count
+- ✅ no @...@ placeholder left in any rendered unit
+- ✅ rendered counterpart exists: nextcloud-app.container _(5 ms)_
+- ✅ rendered counterpart exists: nextcloud-caddy.container _(4 ms)_
+- ✅ rendered counterpart exists: nextcloud-cron.container _(4 ms)_
+- ✅ rendered counterpart exists: nextcloud-db.container _(5 ms)_
+- ✅ rendered counterpart exists: nextcloud.network _(5 ms)_
+- ✅ rendered counterpart exists: nextcloud-redis.container _(4 ms)_
+- ✅ quadlet -dryrun -user succeeds on the rendered dir _(18 ms)_
+- ✅ quadlet generates nextcloud-db.service
+- ✅ quadlet generates nextcloud-redis.service
+- ✅ quadlet generates nextcloud-app.service
+- ✅ quadlet generates nextcloud-cron.service
+- ✅ quadlet generates nextcloud-caddy.service
+- ✅ quadlet generates nextcloud-network.service
+- ✅ negative control: quadlet rejects an invalid unit _(16 ms)_
+- ✅ live unit nextcloud-app.container matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ live unit nextcloud-caddy.container matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ live unit nextcloud-cron.container matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ live unit nextcloud-db.container matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ live unit nextcloud.network matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ live unit nextcloud-redis.container matches what setup.sh renders now (not stale) _(8 ms)_
+- ✅ no stray nextcloud* unit in /home/milosvasic/.config/containers/systemd without a template
+- ✅ negative control: diff detects a drifted unit _(9 ms)_
+- ✅ hard-coding audit: no forbidden literal (ids, user, paths, subnets, hostname, ports) outside the allowlist _(79 ms)_
+- ✅ audit scanned the expected set (setup.sh, 6 templates, Caddyfile, Containerfile, hook, tests)
+- ✅ negative control: audit detects [numeric-id]
+- ✅ negative control: audit detects [user-name]
+- ✅ negative control: audit detects [mount-path]
+- ✅ negative control: audit detects [subnet-10.89]
+- ✅ negative control: audit detects [lan-192.168]
+- ✅ negative control: audit detects [home-path]
+- ✅ negative control: audit detects [port-literal]
+- ✅ negative control: audit detects the host name
+- ✅ negative control: comments are not scanned _(52 ms)_
+- ✅ extracted at least 20 config keys read by the code (sanity)
+- ✅ extracted at least 20 keys from .env.example (sanity)
+- ✅ .env.example documents every key setup.sh / the hook / tests read
+- ✅ .env.example has no orphan key (every KEY= is read somewhere)
+- ✅ key NEXTCLOUD_MAINTENANCE_WINDOW_START is documented in .env.example
+- ✅ key NEXTCLOUD_OVERWRITE_CLI_URL is documented in .env.example
+- ✅ key DEFAULT_PHONE_REGION is documented in .env.example
+- ✅ key APP_UID is documented in .env.example
+- ✅ key APP_GID is documented in .env.example
+- ✅ key APP_RUN_USER is documented in .env.example
+- ✅ key DB_UID is documented in .env.example
+- ✅ key DB_GID is documented in .env.example
+- ✅ key DB_RUN_USER is documented in .env.example
+- ✅ key REDIS_UID is documented in .env.example
+- ✅ key REDIS_GID is documented in .env.example
+- ✅ key REDIS_RUN_USER is documented in .env.example
+- ✅ key NEXTCLOUD_IMAGE is documented in .env.example
+- ✅ key DB_IMAGE is documented in .env.example
+- ✅ key REDIS_IMAGE is documented in .env.example
+- ✅ key CADDY_IMAGE is documented in .env.example
+- ✅ key HELPER_IMAGE is documented in .env.example
+- ✅ negative control: key comparison reports a missing key
+- ✅ git check-ignore proves '.env' is ignored _(8 ms)_
+- ✅ git check-ignore proves '.env.local' is ignored _(8 ms)_
+- ✅ git check-ignore proves '.env.pre-restore.20260101-000000' is ignored _(8 ms)_
+- ✅ git check-ignore proves '.run/app.env' is ignored _(9 ms)_
+- ✅ git check-ignore proves '.run/db.env' is ignored _(8 ms)_
+- ✅ git check-ignore proves 'tls/site.key' is ignored _(8 ms)_
+- ✅ git check-ignore proves 'tls/site.crt' is ignored _(9 ms)_
+- ✅ git check-ignore proves 'backups/x/db.sql' is ignored _(8 ms)_
+- ✅ git check-ignore proves 'data/file' is ignored _(8 ms)_
+- ✅ negative control: git check-ignore does not ignore README.md _(8 ms)_
+- ✅ negative control: git check-ignore does not ignore .env.example _(8 ms)_
+- ✅ git ls-files contains no .env, .run/, tls/, backups/, data/ path
+- ✅ nothing sensitive is untracked-but-addable
+- ✅ collected live secret values to scan for (count only)
+- ✅ secret scan covers tracked + addable files
+- ✅ no live secret value appears in any tracked or addable working-tree file
+- ✅ negative control: the scanner finds a planted secret
+- ✅ .env is mode 600
+- ✅ .run directory is mode 700
+- ✅ .run/app.env is mode 600
+- ✅ .run/caddy.env is mode 600
+- ✅ .run/cron.env is mode 600
+- ✅ .run/db.env is mode 600
+- ✅ at least one generated .run/*.env exists
+- ✅ tls/site.key is mode 600
+- ✅ no compose file in the tree
+- ✅ setup.sh has no podman-compose / compose up invocation (comments excluded)
+- ✅ negative control: filter catches an uncommented podman-compose call
+### t09
+
+- ✅ [APP] ground truth from the image is numeric (podman run id -u/-g www-data)
+- ✅ [APP] service_ids discovery equals ground truth (account www-data)
+- ✅ [APP] live unit UserNS= carries the discovered ids
+- ✅ [DB] ground truth from the image is numeric (podman run id -u/-g mysql)
+- ✅ [DB] service_ids discovery equals ground truth (account mysql)
+- ✅ [DB] live unit UserNS= carries the discovered ids
+- ✅ [REDIS] ground truth from the image is numeric (podman run id -u/-g redis)
+- ✅ [REDIS] service_ids discovery equals ground truth (account redis)
+- ✅ [REDIS] live unit UserNS= carries the discovered ids
+- ✅ negative control: discovery is not a constant (www-data/mysql ids differ from a bogus value)
+- ✅ render with APP_UID=4242 APP_GID=4343 succeeds _(2136 ms)_
+- ✅ UserNS=keep-id:uid=4242,gid=4343 in nextcloud-app
+- ✅ UserNS=keep-id:uid=4242,gid=4343 in nextcloud-cron
+- ✅ db unit keeps its discovered ids
+- ✅ redis unit keeps its discovered ids
+- ✅ negative control: db/redis do NOT pick up the app override
+- ✅ quadlet -dryrun passes for the override variant _(10 ms)_
+- ✅ bogus APP_RUN_USER without ids: service_ids exits non-zero
+- ✅ bogus APP_RUN_USER: message names the account
+- ✅ bogus APP_RUN_USER: message tells how to fix (APP_RUN_USER / APP_UID and APP_GID)
+- ✅ both ids set: service_ids succeeds without touching the (nonexistent) image
+- ✅ both ids set: values come straight from the env file
+- ✅ negative control: without ids the nonexistent image makes service_ids fail
+- ✅ only APP_UID set: uid from env, gid from the image
+- ✅ service_ids rejects an unknown prefix _(27 ms)_
+- ✅ render variant: ports, bind, data path, images _(1231 ms)_
+- ✅ app PublishPort is exactly 127.0.0.1:18080:80
+- ✅ caddy PublishPort tcp is exactly 127.0.0.1:18443:443/tcp
+- ✅ caddy PublishPort udp is exactly 127.0.0.1:18443:443/udp
+- ✅ caddy publishes exactly two ports
+- ✅ app publishes exactly one port
+- ✅ db and redis publish nothing
+- ✅ negative control: defaults leaked into the variant (no 8080/52443 mapping)
+- ✅ Volume= in app contains the data path
+- ✅ Volume= in cron contains the data path
+- ✅ Image= in app is the override
+- ✅ Image= in cron is the override
+- ✅ app and cron Image= lines are identical (no drift)
+- ✅ db Image= override
+- ✅ redis Image= override
+- ✅ caddy Image= override
+- ✅ all-ids variant: app uses 4001:4002
+- ✅ all-ids variant: cron uses 4001:4002
+- ✅ all-ids variant: db uses 4003:4004
+- ✅ all-ids variant: redis uses 4005:4006
+- ✅ the host user in the unit comments comes from id -un
+- ✅ EnvironmentFile points into the redirected run dir
+- ✅ project dir in Documentation= is this checkout
+- ✅ quadlet -dryrun passes for the ports/images/path variant _(12 ms)_
+- ✅ render with no port/bind/image overrides _(1072 ms)_
+- ✅ defaults: app publishes DEFAULT_BIND:DEFAULT_HTTP_PORT
+- ✅ defaults: caddy publishes DEFAULT_HTTPS_PORT
+- ✅ defaults: data dir defaults to <project>/data
+- ✅ defaults: app Image= is DEFAULT_NEXTCLOUD_IMAGE
+- ✅ render with sed metacharacters in DATA_HOST_PATH _(1081 ms)_
+- ✅ hostile path appears verbatim in the Volume= line
+- ✅ relative DATA_HOST_PATH is rejected (non-zero exit)
+- ✅ relative DATA_HOST_PATH: message says 'absolute'
+- ✅ relative DATA_HOST_PATH: message echoes the offending value
+- ✅ unset DATA_HOST_PATH defaults to <project>/data
+- ✅ default data path is absolute
+- ✅ absolute DATA_HOST_PATH is returned verbatim
+- ✅ env_get reads the file
+- ✅ env_get: the last duplicate wins
+- ✅ env_get keeps '=' inside values
+- ✅ env_get keeps inner spaces
+- ✅ env_get is anchored (T9_PREFIX does not match T9_PREFIXED)
+- ✅ env_get ignores the process environment (file is the single source)
+- ✅ env_or: file value beats the default
+- ✅ env_or: missing key -> default
+- ✅ env_or: empty value -> default
+- ✅ env_or: process env does not leak in (missing key -> default)
+- ✅ env_get on a missing env file prints nothing and succeeds
+- ✅ env_need returns the value
+- ✅ env_need on a missing key exits non-zero
+- ✅ env_need names the missing key
+- ✅ env_need on an empty key exits non-zero
+- ✅ image_of nextcloud -> DEFAULT_NEXTCLOUD_IMAGE when nothing is set
+- ✅ image_of db -> DEFAULT_DB_IMAGE when nothing is set
+- ✅ image_of redis -> DEFAULT_REDIS_IMAGE when nothing is set
+- ✅ image_of caddy -> DEFAULT_CADDY_IMAGE when nothing is set
+- ✅ image_of helper -> DEFAULT_HELPER_IMAGE when nothing is set
+- ✅ image_of nextcloud honours the env file
+- ✅ image_of db honours the env file
+- ✅ image_of redis honours the env file
+- ✅ image_of caddy honours the env file
+- ✅ image_of helper honours the env file
+- ✅ image_of with an unknown kind fails
+- ✅ image_of unknown kind: message names it
+- ✅ app_user default
+- ✅ app_user honours APP_RUN_USER
+- ✅ sed_esc round-trips: a|b&c\d
+- ✅ sed_esc round-trips: &&&
+- ✅ sed_esc round-trips: \\\
+- ✅ sed_esc round-trips: |||
+- ✅ sed_esc round-trips: x\1y
+- ✅ sed_esc round-trips: a/b/c
+- ✅ sed_esc round-trips: tab	here
+- ✅ sed_esc round-trips: $HOME `id` $(id)
+- ✅ sed_esc round-trips: it's
+- ✅ sed_esc round-trips: trail\
+- ✅ negative control: WITHOUT sed_esc the hostile string does not round-trip
+- ✅ probe_host: 0.0.0.0 -> 127.0.0.1
+- ✅ probe_host: :: -> 127.0.0.1
+- ✅ probe_host: [::] -> 127.0.0.1
+- ✅ probe_host: 192.0.2.77 -> 192.0.2.77
+- ✅ probe_host: 127.0.0.1 -> 127.0.0.1
+- ✅ probe_host: unset -> DEFAULT_BIND mapped to loopback
+- ✅ negative control: probe_host does not echo the wildcard
+- ✅ write_env_files with TRUSTED_PROXIES set _(323 ms)_
+- ✅ TRUSTED_PROXIES in app.env is written verbatim
+- ✅ write_env_files with empty TRUSTED_PROXIES _(432 ms)_
+- ✅ empty TRUSTED_PROXIES -> subnet(s) of the live nextcloud-net network
+- ✅ the discovered proxy value looks like a CIDR
+- ✅ negative control: discovered value differs from the explicit one
+- ✅ DB_PASSWORD=change-me is refused (non-zero)
+- ✅ DB_PASSWORD=change-me: message mentions the placeholder
+- ✅ DB_PASSWORD=change-me: nothing was written
+- ✅ DB_ROOT_PASSWORD=change-me is refused (non-zero)
+- ✅ DB_ROOT_PASSWORD=change-me: message mentions the placeholder
+- ✅ DB_ROOT_PASSWORD=change-me: nothing was written
+- ✅ NEXTCLOUD_ADMIN_PASSWORD=change-me is refused (non-zero)
+- ✅ NEXTCLOUD_ADMIN_PASSWORD=change-me: message mentions the placeholder
+- ✅ NEXTCLOUD_ADMIN_PASSWORD=change-me: nothing was written
+- ✅ an empty DB_PASSWORD is refused too
+- ✅ empty DB_PASSWORD: message names the key
+- ✅ write_env_files with custom DB_NAME / DB_USER _(316 ms)_
+- ✅ run dir mode is 700 (even under umask 022)
+- ✅ db.env exists with mode 600
+- ✅ app.env exists with mode 600
+- ✅ cron.env exists with mode 600
+- ✅ caddy.env exists with mode 600
+- ✅ redis-session.ini exists with mode 600
+- ✅ least privilege: app.env has no DB_ROOT_PASSWORD key _(9 ms)_
+- ✅ least privilege: app.env does not contain the root password VALUE _(10 ms)_
+- ✅ least privilege: db.env has no NEXTCLOUD_ADMIN_PASSWORD key _(8 ms)_
+- ✅ least privilege: db.env does not contain the admin password VALUE _(8 ms)_
+- ✅ least privilege: cron.env carries no password _(9 ms)_
+- ✅ least privilege: caddy.env carries no password _(8 ms)_
+- ✅ least privilege: cron.env does not contain any secret value _(8 ms)_
+- ✅ negative control: db.env DOES contain MARIADB_ROOT_PASSWORD _(8 ms)_
+- ✅ write_env_files for a FRESH instance (not installed yet) _(144 ms)_
+- ✅ fresh: app.env contains NEXTCLOUD_ADMIN_USER (needed by the installer) _(8 ms)_
+- ✅ fresh: app.env contains NEXTCLOUD_ADMIN_PASSWORD (needed by the installer) _(8 ms)_
+- ✅ write_env_files for an INSTALLED instance _(155 ms)_
+- ✅ installed: app.env has no NEXTCLOUD_ADMIN_PASSWORD key _(8 ms)_
+- ✅ installed: app.env has no NEXTCLOUD_ADMIN_USER key _(8 ms)_
+- ✅ installed: the admin password VALUE is in none of the env files _(8 ms)_
+- ✅ installed: everything else is still written (DB settings, proxies) _(9 ms)_
+- ✅ app.env MYSQL_PASSWORD equals DB_PASSWORD
+- ✅ db.env MARIADB_PASSWORD equals DB_PASSWORD
+- ✅ db.env MARIADB_ROOT_PASSWORD equals DB_ROOT_PASSWORD
+- ✅ DB_NAME flows into app.env MYSQL_DATABASE
+- ✅ DB_NAME flows into db.env MARIADB_DATABASE
+- ✅ DB_USER flows into app.env and db.env alike
+- ✅ TZ is the same across db/app/cron env files
+- ✅ caddy.env upstream is the app container on port 80
+- ✅ a second write_env_files preserves redis-session.ini content
+- ✅ ensure_env generates a fresh env file _(228 ms)_
+- ✅ generated env file is mode 600 (even under umask 022)
+- ✅ DB_PASSWORD is 48 hex characters
+- ✅ DB_ROOT_PASSWORD is 48 hex characters
+- ✅ NEXTCLOUD_ADMIN_PASSWORD is 48 hex characters
+- ✅ the three secrets are mutually distinct
+- ✅ no 'change-me' placeholder remains in any setting
+- ✅ DATA_HOST_PATH is absolute
+- ✅ DATA_HOST_PATH is <project>/data
+- ✅ trusted domains include localhost
+- ✅ trusted domains include 127.0.0.1
+- ✅ trusted domains include this host name (nezha)
+- ✅ trusted domains include the LAN IP
+- ✅ overwrite CLI URL uses this host name
+- ✅ TZ is set
+- ✅ generated file has exactly the keys of .env.example
+- ✅ ensure_env twice: file is byte-identical (never regenerates secrets)
+- ✅ ensure_env twice: says the file already exists
+- ✅ ensure_env twice: mode still 600
+- ✅ ensure_env generates a second, independent env _(125 ms)_
+- ✅ negative control: two generations produce different DB passwords
+- ✅ gen_secret yields 48 hex chars
+- ✅ ensure_tls generates a certificate into a temp TLS_DIR _(250 ms)_
+- ✅ SAN set equals localhost, 127.0.0.1, host, host.local, LAN ip and the trusted domains
+- ✅ key mode 600
+- ✅ cert mode 644
+- ✅ subject CN is the host name
+- ✅ cert is valid for at least 30 more days _(18 ms)_
+- ✅ key matches the certificate _(34 ms)_
+- ✅ idempotent: second run keeps the same cert
+- ✅ a cert that covers a superset of the wanted names is kept
+- ✅ trusted domain foo:8443 yields DNS:foo
+- ✅ no SAN keeps the port (DNS:foo:8443)
+- ✅ trusted domain 192.0.2.9:8443 yields IP:192.0.2.9
+- ✅ no SAN keeps the port on an IP either
+- ✅ a new trusted domain regenerates the cert
+- ✅ the regenerated cert has the new name
+- ✅ the regenerated cert keeps the old names
+- ✅ setup for look-alike: cert has IP:192.0.2.50
+- ✅ setup for look-alike: cert does NOT have IP:192.0.2.5
+- ✅ wanting 192.0.2.5 while the cert has 192.0.2.50 regenerates (exact match)
+- ✅ the new cert has IP:192.0.2.5
+- ✅ DNS look-alike (a.example vs aa.example) regenerates
+- ✅ a certificate expiring within 30 days is regenerated
+- ✅ unit_of db
+- ✅ unit_of redis
+- ✅ unit_of app
+- ✅ unit_of cron
+- ✅ unit_of caddy
+- ✅ unit_of network
+- ✅ unit_of x-y
+- ✅ SERVICES start order is db redis app cron caddy
+- ✅ every service has a template whose rendered name matches unit_of: db _(5 ms)_
+- ✅ every service has a template whose rendered name matches unit_of: redis _(5 ms)_
+- ✅ every service has a template whose rendered name matches unit_of: app _(6 ms)_
+- ✅ every service has a template whose rendered name matches unit_of: cron _(8 ms)_
+- ✅ every service has a template whose rendered name matches unit_of: caddy _(8 ms)_
+- ✅ is_legacy_container nextcloud-db is false for a Quadlet-managed container _(111 ms)_
+- ✅ is_legacy_container nextcloud-redis is false for a Quadlet-managed container _(99 ms)_
+- ✅ is_legacy_container nextcloud-app is false for a Quadlet-managed container _(114 ms)_
+- ✅ is_legacy_container nextcloud-cron is false for a Quadlet-managed container _(116 ms)_
+- ✅ is_legacy_container nextcloud-caddy is false for a Quadlet-managed container _(113 ms)_
+- ✅ negative control: a container that does not exist counts as non-Quadlet (legacy) _(86 ms)_
+- ✅ me_user / me_uid / me_gid come from id
+- ✅ detect_timezone honours TZ
+- ✅ network_subnets equals the live network (read-only)
+### t02
+
+- ✅ nextcloud-network.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(37 ms)_
+- ✅ nextcloud-network.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-network.service Quadlet source file exists _(4 ms)_
+- ✅ nextcloud-db.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(34 ms)_
+- ✅ nextcloud-db.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-db.service Quadlet source file exists _(4 ms)_
+- ✅ nextcloud-redis.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(36 ms)_
+- ✅ nextcloud-redis.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-redis.service Quadlet source file exists _(5 ms)_
+- ✅ nextcloud-app.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(34 ms)_
+- ✅ nextcloud-app.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-app.service Quadlet source file exists _(5 ms)_
+- ✅ nextcloud-cron.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(37 ms)_
+- ✅ nextcloud-cron.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-cron.service Quadlet source file exists _(5 ms)_
+- ✅ nextcloud-caddy.service is a generated unit (fragment under /run/user/1000/systemd/generator) _(42 ms)_
+- ✅ nextcloud-caddy.service SourcePath is a Quadlet file in the user's containers/systemd dir
+- ✅ nextcloud-caddy.service Quadlet source file exists _(5 ms)_
+- ✅ nextcloud-db.service ActiveState
+- ✅ nextcloud-db.service SubState
+- ✅ nextcloud-redis.service ActiveState
+- ✅ nextcloud-redis.service SubState
+- ✅ nextcloud-app.service ActiveState
+- ✅ nextcloud-app.service SubState
+- ✅ nextcloud-cron.service ActiveState
+- ✅ nextcloud-cron.service SubState
+- ✅ nextcloud-caddy.service ActiveState
+- ✅ nextcloud-caddy.service SubState
+- ✅ nextcloud-network.service ActiveState
+- ✅ nextcloud-network.service SubState
+- ✅ podman network nextcloud-net exists _(47 ms)_
+- ✅ the network has a subnet _(78 ms)_
+- ✅ nextcloud-db.service Restart=
+- ✅ nextcloud-db.service is wanted by default.target (generator symlink) _(5 ms)_
+- ✅ nextcloud-db.service appears in default.target's dependency tree
+- ✅ nextcloud-redis.service Restart=
+- ✅ nextcloud-redis.service is wanted by default.target (generator symlink) _(5 ms)_
+- ✅ nextcloud-redis.service appears in default.target's dependency tree
+- ✅ nextcloud-app.service Restart=
+- ✅ nextcloud-app.service is wanted by default.target (generator symlink) _(5 ms)_
+- ✅ nextcloud-app.service appears in default.target's dependency tree
+- ✅ nextcloud-cron.service Restart=
+- ✅ nextcloud-cron.service is wanted by default.target (generator symlink) _(7 ms)_
+- ✅ nextcloud-cron.service appears in default.target's dependency tree
+- ✅ nextcloud-caddy.service Restart=
+- ✅ nextcloud-caddy.service is wanted by default.target (generator symlink) _(7 ms)_
+- ✅ nextcloud-caddy.service appears in default.target's dependency tree
+- ✅ negative control: a made-up unit is NOT wanted by default.target _(8 ms)_
+- ✅ linger enabled for milosvasic
+- ✅ app Requires nextcloud-db.service _(6 ms)_
+- ✅ app starts After nextcloud-db.service _(7 ms)_
+- ✅ app Requires nextcloud-redis.service _(7 ms)_
+- ✅ app starts After nextcloud-redis.service _(6 ms)_
+- ✅ cron Requires nextcloud-app.service _(6 ms)_
+- ✅ cron starts After nextcloud-app.service _(7 ms)_
+- ✅ caddy Wants nextcloud-app.service _(6 ms)_
+- ✅ caddy starts After nextcloud-app.service _(7 ms)_
+- ✅ caddy does NOT hard-Require app (a web restart must not stop TLS) _(7 ms)_
+- ✅ negative control: db does not Require app _(7 ms)_
+- ✅ nextcloud-db.service starts After nextcloud-network.service _(6 ms)_
+- ✅ nextcloud-redis.service starts After nextcloud-network.service _(7 ms)_
+- ✅ nextcloud-app.service starts After nextcloud-network.service _(7 ms)_
+- ✅ nextcloud-cron.service starts After nextcloud-network.service _(5 ms)_
+- ✅ nextcloud-caddy.service starts After nextcloud-network.service _(4 ms)_
+- ✅ the only containers named *nextcloud* are the five stack containers
+- ✅ nextcloud-db label PODMAN_SYSTEMD_UNIT
+- ✅ nextcloud-db is not a compose container (no compose project label)
+- ✅ nextcloud-db state
+- ✅ nextcloud-redis label PODMAN_SYSTEMD_UNIT
+- ✅ nextcloud-redis is not a compose container (no compose project label)
+- ✅ nextcloud-redis state
+- ✅ nextcloud-app label PODMAN_SYSTEMD_UNIT
+- ✅ nextcloud-app is not a compose container (no compose project label)
+- ✅ nextcloud-app state
+- ✅ nextcloud-cron label PODMAN_SYSTEMD_UNIT
+- ✅ nextcloud-cron is not a compose container (no compose project label)
+- ✅ nextcloud-cron state
+- ✅ nextcloud-caddy label PODMAN_SYSTEMD_UNIT
+- ✅ nextcloud-caddy is not a compose container (no compose project label)
+- ✅ nextcloud-caddy state
+- ✅ nextcloud-db health _(83 ms)_
+- ✅ nextcloud-redis health _(95 ms)_
+- ✅ nextcloud-app health _(84 ms)_
+- ✅ no failed nextcloud-* units
+- ✅ configured image for db is non-empty
+- ✅ nextcloud-db runs the configured image
+- ✅ configured image for redis is non-empty
+- ✅ nextcloud-redis runs the configured image
+- ✅ configured image for app is non-empty
+- ✅ nextcloud-app runs the configured image
+- ✅ configured image for cron is non-empty
+- ✅ nextcloud-cron runs the configured image
+- ✅ configured image for caddy is non-empty
+- ✅ nextcloud-caddy runs the configured image
+- ✅ app and cron run the same image (no version drift)
+- ✅ nextcloud-db NRestarts is numeric
+- ✅ nextcloud-db did not restart during the 10 s window (0 -> 0)
+- ✅ nextcloud-redis NRestarts is numeric
+- ✅ nextcloud-redis did not restart during the 10 s window (0 -> 0)
+- ✅ nextcloud-app NRestarts is numeric
+- ✅ nextcloud-app did not restart during the 10 s window (0 -> 0)
+- ✅ nextcloud-cron NRestarts is numeric
+- ✅ nextcloud-cron did not restart during the 10 s window (0 -> 0)
+- ✅ nextcloud-caddy NRestarts is numeric
+- ✅ nextcloud-caddy did not restart during the 10 s window (0 -> 0)
+- ✅ app publishes exactly HTTP 0.0.0.0:8080 -> 80/tcp
+- ✅ caddy publishes exactly HTTPS 0.0.0.0:52443 -> 443 tcp+udp
+- ✅ nextcloud-db publishes nothing
+- ✅ nextcloud-db has no PortBindings in its config
+- ✅ nextcloud-redis publishes nothing
+- ✅ nextcloud-redis has no PortBindings in its config
+- ✅ nextcloud-cron publishes nothing
+- ✅ nextcloud-cron has no PortBindings in its config
+- ✅ host listens on tcp 8080 _(66 ms)_
+- ✅ host listens on tcp 52443 _(73 ms)_
+- ✅ host listens on udp 52443 (HTTP/3) _(70 ms)_
+- ✅ negative control: nothing of ours listens on an unrelated tcp port (52444) _(74 ms)_
+- ✅ the whole stack publishes exactly three host sockets
+- ✅ nextcloud-app runs with the pinned user namespace keep-id:uid=N,gid=N
+- ✅ nextcloud-db runs with the pinned user namespace keep-id:uid=N,gid=N
+- ✅ nextcloud-redis runs with the pinned user namespace keep-id:uid=N,gid=N
+- ✅ nextcloud-cron runs with the pinned user namespace keep-id:uid=N,gid=N
+- ✅ nextcloud-caddy has no user-namespace override (container-root maps to you)
+- ✅ app and cron pin the same ids
+- ✅ nextcloud-db reports healthy _(82 ms)_
+- ✅ nextcloud-redis reports healthy _(73 ms)_
+- ✅ nextcloud-app reports healthy _(71 ms)_
+- ✅ nextcloud-cron reports healthy _(73 ms)_
+- ✅ nextcloud-caddy reports healthy _(68 ms)_
+- ✅ nextcloud-db has a healthcheck command configured
+- ✅ nextcloud-redis has a healthcheck command configured
+- ✅ nextcloud-app has a healthcheck command configured
+- ✅ nextcloud-cron has a healthcheck command configured
+- ✅ nextcloud-caddy has a healthcheck command configured
+- ✅ cron's healthcheck command succeeds in the cron container _(206 ms)_
+- ✅ negative control: cron's healthcheck FAILS where no crond runs (app container) _(214 ms)_
+- ✅ caddy's healthcheck target answers on its admin port _(213 ms)_
+- ✅ negative control: the same probe on a wrong port FAILS _(227 ms)_
+### t03
+
+- ✅ invoking uid is numeric and non-zero
+- ✅ uid inside the user namespace is numeric
+- ✅ nextcloud-db has running processes
+- ✅ every process of nextcloud-db runs as host uid 1000
+- ✅ nextcloud-redis has running processes
+- ✅ every process of nextcloud-redis runs as host uid 1000
+- ✅ nextcloud-app has running processes
+- ✅ every process of nextcloud-app runs as host uid 1000
+- ✅ nextcloud-caddy has running processes
+- ✅ every process of nextcloud-caddy runs as host uid 1000
+- ✅ caddy's container-root maps to the invoking uid
+- ✅ nextcloud-cron has running processes
+- ✅ cron has its documented sub-uid supervisor processes (exception is exercised)
+- ✅ cron: every non-invoking process is container-root running /run/podman-init or busybox crond
+- ✅ cron: no process runs as host root (uid 0)
+- ✅ cron: the exception covers one sub-uid only
+- ✅ cron: all job children (everything but init/crond) run as the invoking uid
+- ✅ negative control: the exception filter would flag a non-root process in a sub-uid _(15 ms)_
+- ✅ account name for app resolved
+- ✅ image app: account www-data ids read from the image
+- ✅ nextcloud-app UserNS ids equal the image account's ids
+- ✅ account name for cron resolved
+- ✅ image cron: account www-data ids read from the image
+- ✅ nextcloud-cron UserNS ids equal the image account's ids
+- ✅ account name for db resolved
+- ✅ image db: account mysql ids read from the image
+- ✅ nextcloud-db UserNS ids equal the image account's ids
+- ✅ account name for redis resolved
+- ✅ image redis: account redis ids read from the image
+- ✅ nextcloud-redis UserNS ids equal the image account's ids
+- ✅ negative control: a wrong account name does not resolve in the image _(379 ms)_
+- ✅ data dir holds at least 5 entries (tree is not trivially empty)
+- ✅ data dir: entries not owned by uid 1000
+- ✅ data dir: entries not in group gid 1000
+- ✅ .run holds at least 3 entries (tree is not trivially empty)
+- ✅ .run: entries not owned by uid 1000
+- ✅ .run: entries not in group gid 1000
+- ✅ tls holds at least 2 entries (tree is not trivially empty)
+- ✅ tls: entries not owned by uid 1000
+- ✅ tls: entries not in group gid 1000
+- ✅ backups holds at least 1 entries (tree is not trivially empty)
+- ✅ backups: entries not owned by uid 1000
+- ✅ backups: entries not in group gid 1000
+- ✅ Quadlet files present
+- ✅ Quadlet files not owned by uid 1000
+- ✅ negative control: find -not -user detects a different owner (uid 1001 check on a tree we own) _(15 ms)_
+- ✅ volume nextcloud-html has a mountpoint
+- ✅ volume nextcloud-html holds entries
+- ✅ volume nextcloud-html: entries not owned by the invoking user
+- ✅ volume nextcloud-html: entries not in the invoking user's group
+- ✅ volume nextcloud-db has a mountpoint
+- ✅ volume nextcloud-db holds entries
+- ✅ volume nextcloud-db: entries not owned by the invoking user
+- ✅ volume nextcloud-db: entries not in the invoking user's group
+- ✅ volume nextcloud-redis has a mountpoint
+- ✅ volume nextcloud-redis holds entries
+- ✅ volume nextcloud-redis: entries not owned by the invoking user
+- ✅ volume nextcloud-redis: entries not in the invoking user's group
+- ✅ volume nextcloud-caddy-data has a mountpoint
+- ✅ volume nextcloud-caddy-data holds entries
+- ✅ volume nextcloud-caddy-data: entries not owned by the invoking user
+- ✅ volume nextcloud-caddy-data: entries not in the invoking user's group
+- ✅ html volume has the 'data' mount-point directory _(47 ms)_
+- ✅ html volume's data mount-point is owned by the invoking user
+- ✅ foreign_owned is false for the data dir _(135 ms)_
+- ✅ foreign_owned is false for volume nextcloud-html _(330 ms)_
+- ✅ foreign_owned is false for volume nextcloud-db _(178 ms)_
+- ✅ foreign_owned is false for volume nextcloud-redis _(170 ms)_
+- ✅ foreign_owned is false for volume nextcloud-caddy-data _(168 ms)_
+- ✅ negative control prepared: the temp dir really has a sub-uid owner on the host
+- ✅ foreign_owned is TRUE for a deliberately foreign-owned tree _(173 ms)_
+- ✅ foreign_owned is false for a tree created by the user itself _(169 ms)_
+- ✅ the temporary foreign tree was removed _(7 ms)_
+- ✅ admin files dir exists on the host _(7 ms)_
+- ✅ host-created file belongs to the invoking user
+- ✅ container (www-data) sees the host file as its own account's uid
+- ✅ container modifies the host-created file _(235 ms)_
+- ✅ the host sees the container's modification
+- ✅ container creates a file inside the host-created dir _(208 ms)_
+- ✅ container deletes the host-created file _(191 ms)_
+- ✅ the host file is gone after the container deleted it _(5 ms)_
+- ✅ container removes the host-created dir (with its content) _(195 ms)_
+- ✅ the host dir is gone _(4 ms)_
+- ✅ container creates a file and a dir _(256 ms)_
+- ✅ container-created file is owned by the invoking user on the host
+- ✅ container-created dir is owned by the invoking user on the host
+- ✅ container-created nested file is owned by the invoking user
+- ✅ host modifies the container-created file _(8 ms)_
+- ✅ container reads the host's edit _(224 ms)_
+- ✅ host deletes the container-created file and dir _(12 ms)_
+- ✅ container no longer sees the deleted entries _(219 ms)_
+- ✅ temporary write-through dir removed _(6 ms)_
+- ✅ status prints the Ownership section
+- ✅ status: data dir reports 0 entries not owned
+- ✅ status: no volume reports foreign-owned files
+- ✅ status: all four volumes report ok
+### t10
+
+- ✅ .env mode
+- ✅ .env owner
+- ✅ .run directory mode
+- ✅ .run holds env files
+- ✅ .run/app.env mode
+- ✅ .run/caddy.env mode
+- ✅ .run/cron.env mode
+- ✅ .run/db.env mode
+- ✅ tls/site.key mode
+- ✅ tls/site.key owner
+- ✅ tls/site.crt is readable and a valid certificate _(31 ms)_
+- ✅ negative control: the mode check would flag a world-readable file (tls/site.crt is not 600) _(7 ms)_
+- ✅ DB root password is configured (>= 16 chars)
+- ✅ admin password is configured (>= 12 chars)
+- ✅ positive control: db container env has MARIADB_ROOT_PASSWORD _(92 ms)_
+- ✅ positive control: db env value equals DB_ROOT_PASSWORD (comparison works) _(91 ms)_
+- ✅ nextcloud-app env does not contain the DB root password _(66 ms)_
+- ✅ nextcloud-app env does not contain the admin password _(73 ms)_
+- ✅ nextcloud-cron env does not contain the DB root password _(74 ms)_
+- ✅ nextcloud-cron env does not contain the admin password _(66 ms)_
+- ✅ nextcloud-caddy env does not contain the DB root password _(70 ms)_
+- ✅ nextcloud-caddy env does not contain the admin password _(69 ms)_
+- ✅ nextcloud-redis env does not contain the DB root password _(65 ms)_
+- ✅ nextcloud-redis env does not contain the admin password _(61 ms)_
+- ✅ db env does not contain the admin password _(69 ms)_
+- ✅ network subnet(s) discovered
+- ✅ app TRUSTED_PROXIES equals the nextcloud-net subnet(s)
+- ✅ TRUSTED_PROXIES has no catch-all (0.0.0.0/0, ::/0, /0)
+- ✅ negative control: the catch-all regex does match 0.0.0.0/0
+- ✅ nextcloud-db: podman port prints nothing
+- ✅ nextcloud-db: no PortBindings
+- ✅ nextcloud-db: no published ports in the container config
+- ✅ nextcloud-redis: podman port prints nothing
+- ✅ nextcloud-redis: no PortBindings
+- ✅ nextcloud-redis: no published ports in the container config
+- ✅ published host sockets are exactly 8080/tcp and 52443/tcp+udp
+- ✅ bind address is the configured one (0.0.0.0)
+- ✅ nextcloud-db is not privileged
+- ✅ nextcloud-db adds no capabilities
+- ✅ nextcloud-db has no devices
+- ✅ nextcloud-db does not use the host network
+- ✅ nextcloud-db does not share the host PID namespace
+- ✅ nextcloud-db does not share the host IPC namespace
+- ✅ nextcloud-db does not share the host user namespace
+- ✅ nextcloud-db has no unconfined security option
+- ✅ nextcloud-db mounts no container-engine socket
+- ✅ nextcloud-redis is not privileged
+- ✅ nextcloud-redis adds no capabilities
+- ✅ nextcloud-redis has no devices
+- ✅ nextcloud-redis does not use the host network
+- ✅ nextcloud-redis does not share the host PID namespace
+- ✅ nextcloud-redis does not share the host IPC namespace
+- ✅ nextcloud-redis does not share the host user namespace
+- ✅ nextcloud-redis has no unconfined security option
+- ✅ nextcloud-redis mounts no container-engine socket
+- ✅ nextcloud-app is not privileged
+- ✅ nextcloud-app adds no capabilities
+- ✅ nextcloud-app has no devices
+- ✅ nextcloud-app does not use the host network
+- ✅ nextcloud-app does not share the host PID namespace
+- ✅ nextcloud-app does not share the host IPC namespace
+- ✅ nextcloud-app does not share the host user namespace
+- ✅ nextcloud-app has no unconfined security option
+- ✅ nextcloud-app mounts no container-engine socket
+- ✅ nextcloud-cron is not privileged
+- ✅ nextcloud-cron adds no capabilities
+- ✅ nextcloud-cron has no devices
+- ✅ nextcloud-cron does not use the host network
+- ✅ nextcloud-cron does not share the host PID namespace
+- ✅ nextcloud-cron does not share the host IPC namespace
+- ✅ nextcloud-cron does not share the host user namespace
+- ✅ nextcloud-cron has no unconfined security option
+- ✅ nextcloud-cron mounts no container-engine socket
+- ✅ nextcloud-caddy is not privileged
+- ✅ nextcloud-caddy adds no capabilities
+- ✅ nextcloud-caddy has no devices
+- ✅ nextcloud-caddy does not use the host network
+- ✅ nextcloud-caddy does not share the host PID namespace
+- ✅ nextcloud-caddy does not share the host IPC namespace
+- ✅ nextcloud-caddy does not share the host user namespace
+- ✅ nextcloud-caddy has no unconfined security option
+- ✅ nextcloud-caddy mounts no container-engine socket
+- ✅ negative control: the socket regex does flag a docker.sock mount
+- ✅ every host bind mount is on the allowlist
+- ✅ Caddyfile, tls and the hooks are mounted read-only
+- ✅ allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/.run/redis-session.ini
+- ✅ allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/Caddyfile
+- ✅ allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/tls
+- ✅ allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Projects/nextcloud/config/nextcloud-hooks
+- ✅ allowlisted mount is actually used: /run/media/milosvasic/DATA4TB/Nextcloud/Data
+- ✅ only the data dir and the session ini are writable host mounts
+- ✅ negative control: an arbitrary path is not allowlisted
+- ✅ Caddyfile serves nothing from the host filesystem (no file_server/root/browse)
+- ✅ Caddyfile only reverse-proxies
+- ✅ negative control: the file_server regex does detect it
+- ✅ TLS endpoint returned a certificate
+- ✅ the HTTPS endpoint presents the generated certificate (sha256)
+- ✅ plain HTTP is not offered on the HTTPS port _(15 ms)_
+- ✅ overwriteprotocol is not forced (plain HTTP must keep working)
+- ✅ trusted_proxies[0] equals the discovered subnet
+- ✅ lost_password_link is disabled
+- ✅ config.php is readable and sane
+- ✅ config.php has no bogus trustedProxies* keys
+- ✅ config.php has no bogus overwrite.protocol key
+- ✅ config.php does not force overwriteprotocol
+- ✅ negative control: the junk-key regex does detect 'trustedProxies.0'
+- ✅ no secret paths are tracked (.env, .run/, tls/, backups/)
+- ✅ git tracks files (the check is not vacuous)
+- ✅ .env is git-ignored _(13 ms)_
+- ✅ .run/app.env is git-ignored _(12 ms)_
+- ✅ tls/site.key is git-ignored _(12 ms)_
+- ✅ backups/x is git-ignored _(13 ms)_
+- ✅ negative control: a tracked file is not git-ignored _(12 ms)_
+### t04-https
+
+- ✅ [localhost] TLS verification result is 0 (cert covers this name)
+- ✅ [localhost] /login ends in HTTP 200
+- ✅ [localhost] negotiated HTTP version is 2
+- ✅ [localhost] /login body is not empty/blank-page sized (>1000 bytes)
+- ✅ [127.0.0.1] TLS verification result is 0 (cert covers this name)
+- ✅ [127.0.0.1] /login ends in HTTP 200
+- ✅ [127.0.0.1] negotiated HTTP version is 2
+- ✅ [127.0.0.1] /login body is not empty/blank-page sized (>1000 bytes)
+- ✅ [nezha] TLS verification result is 0 (cert covers this name)
+- ✅ [nezha] /login ends in HTTP 200
+- ✅ [nezha] negotiated HTTP version is 2
+- ✅ [nezha] /login body is not empty/blank-page sized (>1000 bytes)
+- ✅ [nezha.local] TLS verification result is 0 (cert covers this name)
+- ✅ [nezha.local] /login ends in HTTP 200
+- ✅ [nezha.local] negotiated HTTP version is 2
+- ✅ [nezha.local] /login body is not empty/blank-page sized (>1000 bytes)
+- ✅ [192.168.1.139] TLS verification result is 0 (cert covers this name)
+- ✅ [192.168.1.139] /login ends in HTTP 200
+- ✅ [192.168.1.139] negotiated HTTP version is 2
+- ✅ [192.168.1.139] /login body is not empty/blank-page sized (>1000 bytes)
+- ✅ negative control: name not in certificate is rejected (curl rc=60)
+- ✅ served certificate fingerprint equals tls/site.crt (SHA-256)
+- ✅ the same certificate is served for every SNI name (5 names)
+- ✅ cert SAN contains DNS localhost
+- ✅ cert SAN contains IP 127.0.0.1
+- ✅ cert SAN contains DNS nezha
+- ✅ cert SAN contains DNS nezha.local
+- ✅ cert SAN contains IP 192.168.1.139
+- ✅ certificate is valid for more than 30 more days _(32 ms)_
+- ✅ certificate has a not-yet-expired validity start _(48 ms)_
+- ✅ RSA key is at least 2048 bits
+- ✅ certificate signature algorithm is not SHA-1/MD5
+- ✅ unknown Host header still reaches Nextcloud: body is non-empty
+- ✅ regression: no 0-byte HTTP 200 for an unmatched Host (got 400, 14226B)
+- ✅ unknown Host header is refused by Nextcloud as untrusted domain (400)
+- ✅ untrusted-domain page is rendered by Nextcloud
+- ✅ GET / is a redirect to /login (not an empty 200)
+- ✅ status.php body is non-empty
+- ✅ /login page identifies as Nextcloud
+- ✅ /login page contains a login form/markers
+- ✅ found a /dist/*.js asset URL in the login HTML
+- ✅ asset (identity) is a real file (>1000 bytes)
+- ✅ identity request is served uncompressed
+- ✅ Accept-Encoding: br -> content-encoding: br
+- ✅ brotli body (1644562 B) smaller than identity (5785882 B)
+- ✅ Accept-Encoding: gzip -> content-encoding: gzip
+- ✅ gzip body (1217320 B) smaller than identity (5785882 B)
+- ✅ Accept-Encoding: zstd -> content-encoding: zstd
+- ✅ brotli-decoded asset equals the identity asset
+- ✅ HTTP/3: status 200 over QUIC
+- ✅ HTTP/3: negotiated HTTP version is 3
+- ✅ HTTP/3: status.php reports installed
+- ✅ UDP listener for HTTP/3 exists on the HTTPS port
+- ✅ TCP listener exists on the HTTPS port
+- ✅ alt-svc header advertises h3
+- ✅ response passed through Caddy (Via header)
+- ✅ HTTPS login page contains no http:// link to its own host
+- ✅ HTTPS redirect from / stays on https://
+- ✅ HTTPS /.well-known/caldav redirect does not downgrade to http:// (CalDAV discovery)
+- ✅ HTTPS /.well-known/carddav redirect does not downgrade to http:// (CardDAV discovery)
+- ✅ podman network nextcloud-net has a subnet
+- ✅ occ trusted_proxies[0] equals the nextcloud-net subnet
+- ✅ overwriteprotocol is NOT set (plain HTTP keeps working)
+- ✅ plain HTTP status.php: installed:true
+- ✅ plain HTTP status.php: maintenance:false
+- ✅ plain HTTP /login is a real Nextcloud page
+- ✅ plain HTTP page does not force https:// links to its own host
+- ✅ plain HTTP redirect from / stays on http://
+- ✅ no plaintext HTTP is served on the TLS port (client sees no Nextcloud over http://)
+- ✅ caddy publishes 443/tcp
+- ✅ caddy publishes 443/udp (HTTP/3)
+- ✅ caddy publishes nothing for port 80
+- ✅ port 80 on loopback does not answer _(14 ms)_
+- ✅ 20 sequential HTTPS /status.php requests are all 200
+### t06-nextcloud
+
+- ✅ status.php: installed=true
+- ✅ status.php: maintenance=false
+- ✅ status.php: needsDbUpgrade=false
+- ✅ occ status: installed
+- ✅ background jobs mode is cron (app config)
+- ✅ occ files:scan <admin> exits 0 _(17 ms)_
+- ✅ occ files:scan <admin> reports Errors = 0
+- ✅ occ integrity:check-core exits 0 (no tampered/extra core files)
+- ✅ filesystem_check_changes = 1 (hook applied)
+- ✅ maintenance_window_start = NEXTCLOUD_MAINTENANCE_WINDOW_START
+- ✅ lost_password_link = disabled (hook applied)
+- ✅ MKCOL working collection -> 201
+- ✅ MKCOL again -> 405 (already exists)
+- ✅ PUT text file -> 201
+- ✅ GET text file returns identical bytes
+- ✅ PUT 1 MiB random binary -> 201
+- ✅ GET 1 MiB binary: sha256 matches
+- ✅ PROPFIND depth 1 lists hello.txt with correct getcontentlength
+- ✅ PROPFIND depth 1 lists one.bin with correct getcontentlength
+- ✅ GET returns an ETag
+- ✅ PUT overwrite -> 204
+- ✅ GET after overwrite shows the new content
+- ✅ ETag changed after overwrite
+- ✅ conditional GET with the current ETag -> 304
+- ✅ conditional GET with a stale ETag -> 200
+- ✅ Range GET -> 206
+- ✅ Range GET returns exactly 10 bytes
+- ✅ Range GET bytes equal the first 10 bytes of the file
+- ✅ PUT 8 MiB -> 201
+- ✅ GET 8 MiB round trip sha256 matches
+- ✅ PUT unicode+space name (percent-encoded) -> 201
+- ✅ GET unicode+space name round-trips
+- ✅ PROPFIND lists the decoded unicode name
+- ✅ COPY one.bin -> copy.bin -> 201
+- ✅ COPY result identical to source
+- ✅ MOVE copy.bin -> moved.bin -> 201
+- ✅ source of MOVE is gone (404)
+- ✅ GET moved file identical to original
+- ✅ hello.txt exists on the host disk at the expected path _(5 ms)_
+- ✅ host file sha256 equals the uploaded content
+- ✅ host file owner is the invoking user
+- ✅ host 8 MiB file sha256 equals the uploaded content
+- ✅ unicode+space file exists on the host disk _(5 ms)_
+- ✅ host directory owner is the invoking user
+- ✅ host-side append is visible via WebDAV GET after a PROPFIND of the parent
+- ✅ PROPFIND reports the new size of the host-modified file
+- ✅ host-side delete disappears from PROPFIND
+- ✅ host-deleted file gives 404 via WebDAV
+- ✅ host-side created file appears in PROPFIND
+- ✅ host-created file readable through WebDAV
+- ✅ DELETE a file -> 204
+- ✅ GET deleted file -> 404
+- ✅ deleted file is gone from the host disk _(5 ms)_
+- ✅ DELETE the working directory -> 204
+- ✅ GET inside the deleted directory -> 404
+- ✅ PROPFIND on the deleted directory -> 404
+- ✅ deleted directory is gone from the host disk _(6 ms)_
+- ✅ PROPFIND on a non-existing path -> 404
+- ✅ PUT without authentication -> 401
+- ✅ unauthenticated PUT did not create a file _(5 ms)_
+- ✅ PROPFIND with a wrong password -> 401
+- ✅ OCS capabilities: meta.status = ok
+- ✅ OCS capabilities: server major version >= 35
+- ✅ OCS cloud/user returns the admin id
+- ✅ OCS with a wrong password -> 401
+- ✅ OCS without authentication -> 401
+- ✅ memcache.distributed is a Redis class
+- ✅ memcache.locking is a Redis class
+- ✅ redis answers PING from its container
+- ✅ redis DBSIZE is a number (>= 0)
+- ✅ PHP session handler is redis
+- ✅ redis holds Nextcloud keys after the authenticated requests above
+- ✅ database query succeeded and returned a number
+- ✅ database 'nextcloud' has more than 100 tables
+- ✅ lastcron is recorded (unix timestamp)
+- ✅ background jobs: lastcron advances within 330 s (proof that cron runs) _(105213 ms)_
+- ✅ newest lastcron is not older than 6 minutes (age 2s)
+### t05-smb
+
+- ✅ the Nextcloud user's files directory exists on the host _(5 ms)_
+- ✅ smb-live-test.sh exits 0
+- ✅ every SMB check passed (0 failed)
+- ✅ the SMB suite ran at least 30 checks
+- ✅ second run exits 0
+- ✅ second run reports the same totals
+- ✅ no smb-live-test-* leftovers in the files directory
+- ✅ negative control set up: directory now owned by a foreign (sub-)uid
+- ✅ SMB test FAILS when the directory is owned by a sub-uid
+- ✅ failure is the original NT_STATUS_ACCESS_DENIED
+- ✅ ownership restored to the invoking user
+- ✅ SMB test passes again after the restore
+### t07-resilience
+
+- ✅ precondition: the stack is healthy _(184 ms)_
+- ✅ up on a running stack exits 0
+- ✅ up does not recreate any container (ids unchanged)
+- ✅ up on an unchanged stack reports no configuration drift
+- ✅ after editing .env, up warns that a restart is needed
+- ✅ the running instance still has the OLD value (nothing applied silently)
+- ✅ restart exits 0
+- ✅ stack healthy after restart _(153 ms)_
+- ✅ restart applied the new value through .env -> app.env -> hook
+- ✅ no drift reported once applied
+- ✅ stack healthy after reverting _(195 ms)_
+- ✅ reverted value is back
+- ✅ marker file uploaded through Nextcloud _(1515 ms)_
+- ✅ app: killed (SIGKILL) -> systemd restarts the unit (restart counter increases) _(4143 ms)_
+- ✅ app: stack healthy again after the automatic restart _(4298 ms)_
+- ✅ app: systemd counted the automatic restart
+- ✅ app: it is a NEW process (the old pid is gone)
+- ✅ app: the file survived the crash _(1111 ms)_
+- ✅ redis: killed (SIGKILL) -> systemd restarts the unit (restart counter increases) _(4130 ms)_
+- ✅ redis: stack healthy again after the automatic restart _(10542 ms)_
+- ✅ redis: systemd counted the automatic restart
+- ✅ redis: it is a NEW process (the old pid is gone)
+- ✅ redis: the file survived the crash _(1046 ms)_
+- ✅ database restart: all five units active and web healthy again _(4233 ms)_
+- ✅ data intact after the database restart _(1150 ms)_
+- ✅ database answers (information_schema reachable)
+- ✅ cron stop took 340 ms
+- ✅ cron stops in under 5 s (it used to take 10 s and be SIGKILLed)
+- ✅ cron stop recorded as success
+- ✅ no failed nextcloud units after stopping cron
+- ✅ cron active again _(19 ms)_
+- ✅ down exits 0
+- ✅ down: no unit is active
+- ✅ down: no nextcloud container remains
+- ✅ all units started from a cold start in reverse-dependency order _(129 ms)_
+- ✅ web healthy after the cold start _(3121 ms)_
+- ✅ wants links: the generator enrols every service in default.target (boot start)
+- ✅ linger is enabled (services start at boot without a login)
+- ✅ file still there after a full stop/start _(1521 ms)_
+- ✅ uninstall exits 0
+- ✅ uninstall: no nextcloud unit files remain
+- ✅ uninstall: systemd no longer knows nextcloud-app.service _(18 ms)_
+- ✅ uninstall: no container remains
+- ✅ uninstall kept the html volume _(49 ms)_
+- ✅ uninstall kept the database volume _(50 ms)_
+- ✅ uninstall kept .env and the certificate _(4 ms)_
+- ✅ uninstall kept the user data _(5 ms)_
+- ✅ uninstall removed the generated env files _(4 ms)_
+- ✅ a stand-in listener holds the HTTP port _(1121 ms)_
+- ✅ up refuses while the HTTP port is taken (non-zero exit)
+- ✅ the message names the port as in use
+- ✅ nothing was started (no nextcloud container)
+- ✅ up (reinstall) exits 0
+- ✅ the legacy compose-style container was reported removed
+- ✅ nextcloud-cron is now owned by its Quadlet unit
+- ✅ an unrelated nextcloud-* container was NOT touched
+- ✅ stack healthy after reinstall _(195 ms)_
+- ✅ same Nextcloud instance after uninstall + up (instance id)
+- ✅ file still there after uninstall + reinstall _(1499 ms)_
+- ✅ reinstall: no restart loop (NRestarts of app is 0 on a fresh start)
+- ✅ install refuses a relative DATA_HOST_PATH
+- ✅ message explains: absolute path required
+- ✅ install refuses the placeholder password 'change-me'
+- ✅ message names the placeholder
+- ✅ refused installs did not touch the running stack
+- ✅ stack is still healthy at the end _(204 ms)_
+### t08-backup-restore
+
+- ✅ precondition: the stack is healthy _(180 ms)_
+- ✅ instance id looks sane
+- ✅ MKCOL fixture directory
+- ✅ PUT a.txt
+- ✅ PUT bin.dat (1 MiB)
+- ✅ PUT unicode name
+- ✅ MKCOL nested
+- ✅ PUT nested/deep.txt
+- ✅ PUT del.txt
+- ✅ create a Nextcloud user BEFORE the backup (database content) _(2052 ms)_
+- ✅ that user exists _(740 ms)_
+- ✅ database has a full Nextcloud schema
+- ✅ backup --quiesce exits 0
+- ✅ output says it entered maintenance mode
+- ✅ output says it left maintenance mode
+- ✅ backup directory exists _(5 ms)_
+- ✅ backup directory is mode 0700
+- ✅ backup contains database.sql.gz _(4 ms)_
+- ✅ backup contains data.tar.gz _(5 ms)_
+- ✅ backup contains config.tar.gz _(5 ms)_
+- ✅ backup contains env.backup _(5 ms)_
+- ✅ env.backup is mode 0600
+- ✅ systemd.backup holds the unit templates _(5 ms)_
+- ✅ database.sql.gz is a valid gzip _(15 ms)_
+- ✅ data.tar.gz is a valid archive _(1188 ms)_
+- ✅ database dump contains the schema
+- ✅ database dump contains the user created before the backup _(20 ms)_
+- ✅ data archive contains the fixture file _(715 ms)_
+- ✅ config archive contains config/config.php (instanceid, secret, salt)
+- ✅ maintenance mode is OFF after the backup
+- ✅ the config.php inside the quiesced backup was captured before maintenance mode began _(20 ms)_
+- ✅ …and is NOT flagged 'maintenance' => true _(24 ms)_
+- ✅ stack healthy after the backup _(198 ms)_
+- ✅ overwrite a.txt
+- ✅ add b.txt (did not exist at backup time)
+- ✅ delete del.txt
+- ✅ create a second user AFTER the backup _(2293 ms)_
+- ✅ mutation visible: a.txt is version TWO _(860 ms)_
+- ✅ mutation visible: b.txt exists _(727 ms)_
+- ✅ mutation visible: del.txt gone _(877 ms)_
+- ✅ truncated data.tar.gz: restore refuses (non-zero)
+- ✅ …and names the corrupt archive
+- ✅ missing env.backup: restore refuses
+- ✅ …saying the set is incomplete
+- ✅ config archive without config.php: restore refuses
+- ✅ …explaining config.php is required
+- ✅ wrong confirmation word: aborted
+- ✅ …and says nothing was restored
+- ✅ non-existent backup directory is refused
+- ✅ all refusals left the data directory untouched (entry count)
+- ✅ …and did not recreate any container
+- ✅ …and the mutated state is still there (a.txt is still version TWO) _(672 ms)_
+- ✅ an incomplete newer directory is ignored by newest_backup
+- ✅ backup with the database down fails
+- ✅ …and leaves no partial backup directory behind
+- ✅ stack healthy again after the failed-backup experiment _(145 ms)_
+- ✅ restore exits 0
+- ✅ archives were verified first
+- ✅ the previous .env was saved
+- ✅ restore completed
+- ✅ stack healthy after the restore _(201 ms)_
+- ✅ the restored instance is NOT in maintenance mode
+- ✅ SAME Nextcloud instance (instance id from the restored config.php)
+- ✅ a.txt is back to version ONE (API) _(1274 ms)_
+- ✅ a.txt is version ONE on the host disk _(8 ms)_
+- ✅ bin.dat restored byte-identical _(724 ms)_
+- ✅ nested file restored _(841 ms)_
+- ✅ del.txt is back _(897 ms)_
+- ✅ b.txt (created after the backup) is gone _(832 ms)_
+- ✅ the user created before the backup exists _(625 ms)_
+- ✅ the user created after the backup is gone _(638 ms)_
+- ✅ database has the same number of tables
+- ✅ the administrator can log in with the credentials from the backup _(940 ms)_
+- ✅ a saved copy of the previous .env exists (mode 0600) _(23 ms)_
+- ✅ ownership: no entry in the data directory belongs to another user
+- ✅ ownership: no file in any volume belongs to a sub-uid
+- ✅ status reports ownership ok
+- ✅ plain backup exits 0
+- ✅ the second backup is a different directory
+- ✅ the second backup is a complete set _(20 ms)_
+- ✅ plain backup does not touch maintenance mode
+- ✅ destroy exits 0
+- ✅ destroy: no nextcloud container remains
+- ✅ destroy: all four named volumes are gone
+- ✅ destroy: the network is gone _(49 ms)_
+- ✅ destroy never deletes the user data directory _(5 ms)_
+- ✅ destroy keeps .env _(5 ms)_
+- ✅ up after destroy is REFUSED while the data directory is not empty
+- ✅ …with a clear explanation
+- ✅ …and started nothing
+- ✅ restore from nothing exits 0
+- ✅ stack healthy after restore-from-nothing _(195 ms)_
+- ✅ SAME instance id after destroy + restore
+- ✅ a.txt is version ONE _(1401 ms)_
+- ✅ bin.dat byte-identical _(866 ms)_
+- ✅ the user from the backup exists _(624 ms)_
+- ✅ administrator login works _(1032 ms)_
+- ✅ database has the same number of tables
+- ✅ ownership: no entry in the data directory belongs to another user
+- ✅ ownership: no file in any volume belongs to a sub-uid
+- ✅ cron is running again _(17 ms)_
+- ✅ app container reports healthy (its healthcheck passes) _(17416 ms)_
+### t11-docs
+
+- ✅ dispatch case parsed from setup.sh (commands found)
+- ✅ every dispatch command is in the setup.sh help header, and the header lists no phantom command
+- ✅ README setup.sh reference table documents every command and alias, and no phantom one
+- ✅ configuration keys read by the code (count)
+- ✅ every key the code reads is in .env.example
+- ✅ every key the code reads is in README's configuration reference
+- ✅ every .env.example key appears in README.md
+- ✅ .env.example defines no key that nothing reads
+- ✅ docs contain no dead references (compose.yaml, podman-compose, nextcloud-data volume, helixcode, 8280, ...)
+- ✅ every backticked repo path in the docs exists (or is runtime-generated)
+- ✅ every nextcloud-*.service named in the docs exists
+- ✅ every live nextcloud-*.service unit is documented in README.md
+- ✅ DEFAULT_HTTP_PORT / DEFAULT_HTTPS_PORT parsed from setup.sh
+- ✅ documented default ports equal setup.sh DEFAULT_HTTP_PORT/DEFAULT_HTTPS_PORT
+- ✅ documented image defaults equal setup.sh DEFAULT_*_IMAGE
+- ✅ README table of contents resolves to headings (GitHub anchors) and lists every section
+- ✅ fenced code blocks are balanced in README.md, AGENTS.md and tests/README.md
+- ✅ markdown tables are well formed (consistent cell counts, closed rows)
+- ✅ no TODO/FIXME/XXX placeholders in the docs
+- ✅ figures stated 'as of' carry a date; README 'Verified state' is dated
+- ✅ unprivileged/ownership claims name the cron (crond = container-root) exception
+- ✅ AGENTS.md verification commands reference existing subcommands and scripts
+- ✅ AGENTS.md has a verification command block _(11 ms)_
+- ✅ every tests/t*.sh module, run-all.sh and smb-live-test.sh is described in the docs
+- ✅ every test file named in the docs exists
+- ✅ docs mention: systemd --user units
+- ✅ docs mention: keep-id / file ownership
+- ✅ docs mention: ownership audit/migration
+- ✅ docs mention: SMB live test (tests/smb-live-test.sh)
+- ✅ docs mention: uninstall command
+- ✅ docs mention: backup --quiesce
+- ✅ docs mention: .env.pre-restore
+- ✅ docs mention: drift warning ('./setup.sh restart' to apply)
+- ✅ docs mention: NEXTCLOUD_MAINTENANCE_WINDOW_START
+- ✅ docs mention: HELPER_IMAGE
+- ✅ docs mention: RunInit
+- ✅ docs mention: cron-root (sub-uid) exception
+- ✅ docs mention: evidence reports
+- ✅ docs mention: host tuning advice (sysctl/limits)
+
+## Environment
+
+```
+started:      2026-10-19T22:55:34Z
+host:         nezha   kernel 6.12.61-6.12-alt1
+user:         milosvasic (uid 1000, gid 1000)
+ns uid map:    0 1000 1; 1 100000 65536;
+podman:       podman version 5.7.1
+systemd:      systemd 258 (258.5-alt1)
+quadlet:      /usr/libexec/podman/quadlet
+git commit:   b6a9c73 on main  (working tree: 0 uncommitted paths)
+options:      quick=0 non-destructive=0 only='' skip=''
+
+--- unit states
+nextcloud-network.service    active (exited)
+nextcloud-db.service         active (running)
+nextcloud-redis.service      active (running)
+nextcloud-app.service        active (running)
+nextcloud-cron.service       active (running)
+nextcloud-caddy.service      active (running)
+
+--- containers and images
+nextcloud-app  docker.io/library/nextcloud:35-apache  Up About a minute (healthy)
+nextcloud-caddy  localhost/nextcloud-caddy-brotli:2  Up About a minute (healthy)
+nextcloud-cron  docker.io/library/nextcloud:35-apache  Up About a minute (healthy)
+nextcloud-db  docker.io/library/mariadb:11  Up 2 minutes (healthy)
+nextcloud-redis  docker.io/library/redis:7-alpine  Up 2 minutes (healthy)
+
+--- image digests
+docker.io/library/mariadb:11  c1d04d5c27cfe84c85c8b11684d121b93df541ee2ccfdf62f72f2ac4ff37f762
+docker.io/library/nextcloud:35-apache  45450fd662d647be0fa27a0832241b6e6280f3c576b04c697145e368ce0909ab
+docker.io/library/redis:7-alpine  487efc0616382465781b8fdc3d6d1db449e6fd80ae23bf48432a2da6b6929908
+localhost/nextcloud-caddy-brotli:2  7c54cfbf2f8d47132466d1814b02fe61c48ae77d750382d2d653017230bac09e
+
+--- sha256 of the code under test
+6fcd7da5195c79335229ce56728ae8ca1d804a606e5b10b23b43562359fd0161  setup.sh
+9c350cd2d27d764c4703b3a9522d32e03500dc0d8a4bd06ca1c65980b3255097  Caddyfile
+026b110198d0fbe61882dc6f2741c0086d89afa5fc9c81911e9ce1022d4c66d1  docker/caddy/Containerfile
+de41a48e7ddd57f0ed38615755d9da3c3bdaedb81140090de3208686c9a57b41  systemd/nextcloud-app.container.in
+67fcb9d427b975078eb03992b13ab94d1bac4b097c1a4261ce8e03387b8a11aa  systemd/nextcloud-caddy.container.in
+a429f5b872fc1235e64e859f36bc31f7cd673cdb58036a0291b7a1f3d63a3c25  systemd/nextcloud-cron.container.in
+8777f44504e094e52c177e6b33051c8f4f5fb6939169dee9fa10ce91abdf68db  systemd/nextcloud-db.container.in
+6ffed1781c7be2a3a8eda81567cfae8bb8cb6c845f2f7ff09acd3678fdffd311  systemd/nextcloud.network.in
+cc84961fd57cc3d2eea8a6f09d676d6ef5aad2cd161ffa81252c84c7cf9309fc  systemd/nextcloud-redis.container.in
+04a379f5287c19d05de8c5a8f9fed47a6db400ba2d1582f1b6ce6fe3f7a6d7d9  config/nextcloud-hooks/before-starting/10-nextcloud-tuning.sh
+035d2d611d4714c20c773f592489d68efb5b1361e9af5498728b58ddb35128d9  tests/lib.sh
+ded811a6042ba424835b084472a490c18b0ea1929042575dd8ec2ab141a7b5a6  tests/publish-evidence.sh
+5f85c49aafddb172c862213d8f08b7fc4fd59307cc9d5808b7fabe9d4756003b  tests/run-all.sh
+7f20faf2d44b9f80dfac820dde657792df6ece33a1c0de8ae6e011d362a0bb23  tests/smb-live-test.sh
+f62b44becf08b795ad7a50c69b431d4347e7bc0bccaafce6cab81d378a8b49b2  tests/t01-static.sh
+dfda8334cb0fb0ed28033ff88fb13ca6be5c6e6c62a68626a317a5eb13e5ac8d  tests/t02-units.sh
+62f9f7916f8ddbe36fd87b858499fbb1316d582e5fc4d6d4917e8fde9d63cfa7  tests/t03-ownership.sh
+bdf026eb463b910f464eadcd0c1653867e2a4565097edf31e679df119c301ef2  tests/t04-https.sh
+71c5649e42f4cc71967e6817087463daa43aeea0ac499214ecee129f2cf4043c  tests/t05-smb.sh
+ec5310c11eb5fe9a99652123ddb5ff0051d580708b15548f1d6ec70bf2b5c88b  tests/t06-nextcloud.sh
+1e5c7f0135651e9ad81e0484c6d4748e85153a5f1eb19a33b677785727f6cb11  tests/t07-resilience.sh
+575b805dcdf7e0ff6b5237b27609f26f4fa57573fd9000f1283b6bd0ff287b5b  tests/t08-backup-restore.sh
+e57991fec07ddfde8869d6360010916b48d352cb701e53cab194920f8fbe2cc4  tests/t09-dynamic.sh
+b2075044322f81ba2c1947494695f5b93a450e89190219521f09c04bddc101dd  tests/t10-security.sh
+add2045984993f863fc1fc75f077aafd3dcc5c6c354430cc4ae2112b3c9b87a2  tests/t11-docs.sh
+60e3518159dccd609f3f92e5cbe8c984d4c04b278ec405f2e0679bd9dfa197cf  tests/report.py
+ac16811cb3ad6df45becc712f4b2d630d63e98234b77a2e71f0370267cf77b67  .env.example
+finished:     2026-10-19T23:10:06Z
+```
+
+## Integrity
+
+Every file in this directory is listed with its SHA-256 in `MANIFEST.sha256` (verify with `sha256sum -c MANIFEST.sha256`). `results.jsonl` holds one record per check (command, exit status, duration, redacted output); `logs/` holds the full per-module logs; `console/` the raw console output. Secrets are redacted everywhere.

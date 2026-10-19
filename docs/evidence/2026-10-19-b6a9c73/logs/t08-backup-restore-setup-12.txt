@@ -1,0 +1,13 @@
+==> Archiving config.php
+  ok config.tar.gz (36K)
+==> Entering maintenance mode (database and files are captured in the same state)
+  ok maintenance mode on
+==> Dumping the database
+  ok database.sql.gz (288K)
+==> Archiving user data
+  ok data.tar.gz (115M)
+==> Copying configuration
+  ok maintenance mode off
+
+Backup complete: /run/media/milosvasic/DATA4TB/Projects/nextcloud/backups/20261020-010440
+Restore it with:  ./setup.sh restore 20261020-010440

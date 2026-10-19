@@ -1,0 +1,42 @@
+
+== t11-docs: documentation matches the code
+  PASS  dispatch case parsed from setup.sh (commands found)
+  PASS  every dispatch command is in the setup.sh help header, and the header lists no phantom command
+  PASS  README setup.sh reference table documents every command and alias, and no phantom one
+  PASS  configuration keys read by the code (count)
+  PASS  every key the code reads is in .env.example
+  PASS  every key the code reads is in README's configuration reference
+  PASS  every .env.example key appears in README.md
+  PASS  .env.example defines no key that nothing reads
+  PASS  docs contain no dead references (compose.yaml, podman-compose, nextcloud-data volume, helixcode, 8280, ...)
+  PASS  every backticked repo path in the docs exists (or is runtime-generated)
+  PASS  every nextcloud-*.service named in the docs exists
+  PASS  every live nextcloud-*.service unit is documented in README.md
+  PASS  DEFAULT_HTTP_PORT / DEFAULT_HTTPS_PORT parsed from setup.sh
+  PASS  documented default ports equal setup.sh DEFAULT_HTTP_PORT/DEFAULT_HTTPS_PORT
+  PASS  documented image defaults equal setup.sh DEFAULT_*_IMAGE
+  PASS  README table of contents resolves to headings (GitHub anchors) and lists every section
+  PASS  fenced code blocks are balanced in README.md, AGENTS.md and tests/README.md
+  PASS  markdown tables are well formed (consistent cell counts, closed rows)
+  PASS  no TODO/FIXME/XXX placeholders in the docs
+  PASS  figures stated 'as of' carry a date; README 'Verified state' is dated
+  PASS  unprivileged/ownership claims name the cron (crond = container-root) exception
+  PASS  AGENTS.md verification commands reference existing subcommands and scripts
+  PASS  AGENTS.md has a verification command block
+  PASS  every tests/t*.sh module, run-all.sh and smb-live-test.sh is described in the docs
+  PASS  every test file named in the docs exists
+  PASS  docs mention: systemd --user units
+  PASS  docs mention: keep-id / file ownership
+  PASS  docs mention: ownership audit/migration
+  PASS  docs mention: SMB live test (tests/smb-live-test.sh)
+  PASS  docs mention: uninstall command
+  PASS  docs mention: backup --quiesce
+  PASS  docs mention: .env.pre-restore
+  PASS  docs mention: drift warning ('./setup.sh restart' to apply)
+  PASS  docs mention: NEXTCLOUD_MAINTENANCE_WINDOW_START
+  PASS  docs mention: HELPER_IMAGE
+  PASS  docs mention: RunInit
+  PASS  docs mention: cron-root (sub-uid) exception
+  PASS  docs mention: evidence reports
+  PASS  docs mention: host tuning advice (sysctl/limits)
+-- t11-docs: 39 passed, 0 failed, 0 skipped (5528 ms)

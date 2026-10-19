@@ -1,0 +1,11 @@
+{"module":"t01","title":"static analysis: syntax, templates, hard-coding, secrets, modes","pass":123,"fail":0,"skip":0,"ms":18405}
+{"module":"t09","title":"dynamic: setup.sh functions with throw-away configuration","pass":224,"fail":0,"skip":0,"ms":32418}
+{"module":"t02","title":"systemd user units, containers, ports","pass":138,"fail":0,"skip":0,"ms":23614}
+{"module":"t03","title":"ownership: processes and files belong to the invoking user","pass":96,"fail":0,"skip":0,"ms":15099}
+{"module":"t10","title":"security posture","pass":113,"fail":0,"skip":0,"ms":13205}
+{"module":"t04-https","title":"HTTPS front end (Caddy), certificate, HTTP/2+3, compression","pass":74,"fail":0,"skip":0,"ms":9129}
+{"module":"t06-nextcloud","title":"Nextcloud functional: WebDAV, OCS, host disk, Redis, DB, cron","pass":77,"fail":0,"skip":0,"ms":156309}
+{"module":"t05-smb","title":"SMB add/modify/remove against the live share","pass":12,"fail":0,"skip":0,"ms":55114}
+{"module":"t07-resilience","title":"lifecycle, self-healing, boot order, uninstall/reinstall","pass":66,"fail":0,"skip":0,"ms":209194}
+{"module":"t08-backup-restore","title":"backup, restore, destroy, restore-from-nothing","pass":102,"fail":0,"skip":0,"ms":328546}
+{"module":"t11-docs","title":"documentation matches the code","pass":39,"fail":0,"skip":0,"ms":5528}

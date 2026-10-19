@@ -1,0 +1,8 @@
+==> Stopping the services and removing the systemd units
+  ok removed nextcloud-app.container
+  ok removed nextcloud-caddy.container
+  ok removed nextcloud-cron.container
+  ok removed nextcloud-db.container
+  ok removed nextcloud-redis.container
+  ok removed nextcloud.network
+  ok uninstalled (volumes, data, .env and tls/ are kept; ./setup.sh up reinstalls)

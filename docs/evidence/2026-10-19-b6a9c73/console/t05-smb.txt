@@ -1,0 +1,15 @@
+
+== t05-smb: SMB add/modify/remove against the live share
+  PASS  the Nextcloud user's files directory exists on the host
+  PASS  smb-live-test.sh exits 0
+  PASS  every SMB check passed (0 failed)
+  PASS  the SMB suite ran at least 30 checks
+  PASS  second run exits 0
+  PASS  second run reports the same totals
+  PASS  no smb-live-test-* leftovers in the files directory
+  PASS  negative control set up: directory now owned by a foreign (sub-)uid
+  PASS  SMB test FAILS when the directory is owned by a sub-uid
+  PASS  failure is the original NT_STATUS_ACCESS_DENIED
+  PASS  ownership restored to the invoking user
+  PASS  SMB test passes again after the restore
+-- t05-smb: 12 passed, 0 failed, 0 skipped (55114 ms)

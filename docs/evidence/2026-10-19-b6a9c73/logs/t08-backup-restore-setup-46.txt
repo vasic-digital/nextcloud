@@ -1,0 +1,10 @@
+  ok TLS certificate in tls/ is valid and covers all names
+  ok backup archives verified
+warn This REPLACES the current instance — user files, the database and
+warn config.php — with the contents of:
+warn   /run/media/milosvasic/DATA4TB/Projects/nextcloud/backups/20261020-010440
+warn Everything in this directory will be DELETED first:
+warn   /run/media/milosvasic/DATA4TB/Nextcloud/Data
+warn The current contents are lost. Take a backup first if you want them.
+
+Type RESTORE to confirm: fail aborted; nothing was restored.

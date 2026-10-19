@@ -1,0 +1,81 @@
+
+== t06-nextcloud: Nextcloud functional: WebDAV, OCS, host disk, Redis, DB, cron
+  PASS  status.php: installed=true
+  PASS  status.php: maintenance=false
+  PASS  status.php: needsDbUpgrade=false
+  PASS  occ status: installed
+  PASS  background jobs mode is cron (app config)
+  PASS  occ files:scan <admin> exits 0
+  PASS  occ files:scan <admin> reports Errors = 0
+  PASS  occ integrity:check-core exits 0 (no tampered/extra core files)
+  PASS  filesystem_check_changes = 1 (hook applied)
+  PASS  maintenance_window_start = NEXTCLOUD_MAINTENANCE_WINDOW_START
+  PASS  lost_password_link = disabled (hook applied)
+  PASS  MKCOL working collection -> 201
+  PASS  MKCOL again -> 405 (already exists)
+  PASS  PUT text file -> 201
+  PASS  GET text file returns identical bytes
+  PASS  PUT 1 MiB random binary -> 201
+  PASS  GET 1 MiB binary: sha256 matches
+  PASS  PROPFIND depth 1 lists hello.txt with correct getcontentlength
+  PASS  PROPFIND depth 1 lists one.bin with correct getcontentlength
+  PASS  GET returns an ETag
+  PASS  PUT overwrite -> 204
+  PASS  GET after overwrite shows the new content
+  PASS  ETag changed after overwrite
+  PASS  conditional GET with the current ETag -> 304
+  PASS  conditional GET with a stale ETag -> 200
+  PASS  Range GET -> 206
+  PASS  Range GET returns exactly 10 bytes
+  PASS  Range GET bytes equal the first 10 bytes of the file
+  PASS  PUT 8 MiB -> 201
+  PASS  GET 8 MiB round trip sha256 matches
+  PASS  PUT unicode+space name (percent-encoded) -> 201
+  PASS  GET unicode+space name round-trips
+  PASS  PROPFIND lists the decoded unicode name
+  PASS  COPY one.bin -> copy.bin -> 201
+  PASS  COPY result identical to source
+  PASS  MOVE copy.bin -> moved.bin -> 201
+  PASS  source of MOVE is gone (404)
+  PASS  GET moved file identical to original
+  PASS  hello.txt exists on the host disk at the expected path
+  PASS  host file sha256 equals the uploaded content
+  PASS  host file owner is the invoking user
+  PASS  host 8 MiB file sha256 equals the uploaded content
+  PASS  unicode+space file exists on the host disk
+  PASS  host directory owner is the invoking user
+  PASS  host-side append is visible via WebDAV GET after a PROPFIND of the parent
+  PASS  PROPFIND reports the new size of the host-modified file
+  PASS  host-side delete disappears from PROPFIND
+  PASS  host-deleted file gives 404 via WebDAV
+  PASS  host-side created file appears in PROPFIND
+  PASS  host-created file readable through WebDAV
+  PASS  DELETE a file -> 204
+  PASS  GET deleted file -> 404
+  PASS  deleted file is gone from the host disk
+  PASS  DELETE the working directory -> 204
+  PASS  GET inside the deleted directory -> 404
+  PASS  PROPFIND on the deleted directory -> 404
+  PASS  deleted directory is gone from the host disk
+  PASS  PROPFIND on a non-existing path -> 404
+  PASS  PUT without authentication -> 401
+  PASS  unauthenticated PUT did not create a file
+  PASS  PROPFIND with a wrong password -> 401
+  PASS  OCS capabilities: meta.status = ok
+  PASS  OCS capabilities: server major version >= 35
+  PASS  OCS cloud/user returns the admin id
+  PASS  OCS with a wrong password -> 401
+  PASS  OCS without authentication -> 401
+  PASS  memcache.distributed is a Redis class
+  PASS  memcache.locking is a Redis class
+  PASS  redis answers PING from its container
+  PASS  redis DBSIZE is a number (>= 0)
+  PASS  PHP session handler is redis
+  PASS  redis holds Nextcloud keys after the authenticated requests above
+  PASS  database query succeeded and returned a number
+  PASS  database 'nextcloud' has more than 100 tables
+   --- background jobs (cron fires every 5 minutes) ---
+  PASS  lastcron is recorded (unix timestamp)
+  PASS  background jobs: lastcron advances within 330 s (proof that cron runs) (105213 ms)
+  PASS  newest lastcron is not older than 6 minutes (age 2s)
+-- t06-nextcloud: 77 passed, 0 failed, 0 skipped (156309 ms)

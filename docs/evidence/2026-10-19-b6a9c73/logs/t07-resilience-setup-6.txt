@@ -1,0 +1,31 @@
+  ok .env already exists — leaving it untouched
+==> Re-rendering the units and restarting to pick up configuration changes
+  ok TLS certificate in tls/ is valid and covers all names
+  ok caddy image localhost/nextcloud-caddy-brotli:2 present
+  ok systemd user units installed in /home/milosvasic/.config/containers/systemd
+  ok all stack files are owned by milosvasic
+==> Waiting for Nextcloud to finish installing (up to 600s)
+    ... still installing (0s)
+  ok web interface is up and reported as installed (after 5s)
+
+  Nextcloud is ready
+
+  HTTPS (recommended, self-signed certificate)
+    On this machine   https://localhost:52443
+    From the LAN      https://192.168.1.139:52443
+    By host name      https://nezha:52443
+  Plain HTTP
+    On this machine   http://localhost:8080
+    From the LAN      http://192.168.1.139:8080
+
+  Administrator     admin
+  Password          <redacted>
+  Credentials file  /run/media/milosvasic/DATA4TB/Projects/nextcloud/.env
+
+  Keep this password: it is stored in .env and nowhere else.
+
+  Useful next steps
+    ./setup.sh occ status
+    ./setup.sh status
+    systemctl --user status nextcloud-app
+    ./setup.sh down

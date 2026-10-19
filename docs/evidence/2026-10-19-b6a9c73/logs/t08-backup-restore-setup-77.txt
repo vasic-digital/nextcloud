@@ -1,0 +1,10 @@
+==> Archiving config.php
+  ok config.tar.gz (36K)
+==> Dumping the database
+  ok database.sql.gz (288K)
+==> Archiving user data
+  ok data.tar.gz (115M)
+==> Copying configuration
+
+Backup complete: /run/media/milosvasic/DATA4TB/Projects/nextcloud/backups/20261020-010739
+Restore it with:  ./setup.sh restore 20261020-010739

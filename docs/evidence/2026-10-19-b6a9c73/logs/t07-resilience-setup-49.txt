@@ -1,0 +1,8 @@
+  ok .env already exists — leaving it untouched
+==> Preflight checks
+  ok podman version 5.7.1; systemd --user reachable; Quadlet at /usr/libexec/podman/quadlet
+  ok rootless podman
+warn port 8080 is already in use by another process:
+     Netid State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                             
+     tcp   LISTEN 0      5            0.0.0.0:8080      0.0.0.0:*    users:(("python3",pid=937637,fd=3))
+fail free it, or set NEXTCLOUD_PORT in .env to something else.

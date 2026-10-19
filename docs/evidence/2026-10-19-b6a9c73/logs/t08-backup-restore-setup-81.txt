@@ -1,0 +1,8 @@
+warn This permanently deletes every container, the network and the volumes:
+warn   nextcloud-html  nextcloud-db  nextcloud-redis  nextcloud-caddy-data
+warn The database and config.php will be gone. The user files in
+warn   /run/media/milosvasic/DATA4TB/Nextcloud/Data
+warn are NOT deleted (they are a plain host directory).
+
+Type DELETE to confirm: ==> Removing the services and their volumes
+  ok destroyed (unit files stay installed; ./setup.sh up recreates everything)

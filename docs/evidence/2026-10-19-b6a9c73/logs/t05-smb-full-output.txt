@@ -1,0 +1,50 @@
+SMB live test  //192.168.1.139/Nextcloud as milosvasic  ->  Nextcloud user "admin"  (smb-live-test-20261020-010004-919575)
+host path: /run/media/milosvasic/DATA4TB/Nextcloud/Data/admin/files/smb-live-test-20261020-010004-919575
+
+== 1. connect and browse
+  PASS  authenticate and list the share root
+  PASS  list admin/files
+== 2. SMB -> add directories and files
+  PASS  mkdir test directory
+  PASS  mkdir nested directories
+  PASS  put a text file
+  PASS  put a 1 MiB binary file into a nested dir
+  PASS  read the text file back, byte-identical
+  PASS  read the binary back, byte-identical
+== 3. SMB -> modify and rename
+  PASS  overwrite (modify) the text file
+  PASS  modified content is what was written
+  PASS  rename a file
+  PASS  rename a directory
+  PASS  old names are gone, new names are listed
+== 4. on disk: everything belongs to milosvasic
+  PASS  directory is owned by milosvasic
+  PASS  SMB-created file is owned by milosvasic
+  PASS  nested file is owned by milosvasic
+  PASS  no file in the test tree has another owner
+== 5. Nextcloud sees what SMB wrote (HTTPS WebDAV, as admin)
+  PASS  PROPFIND lists the SMB-created file
+  PASS  GET returns the SMB-written content
+  PASS  nested binary is served intact
+== 6. Nextcloud -> add; SMB can read, modify, rename, delete it
+  PASS  WebDAV MKCOL creates a directory
+  PASS  WebDAV PUT creates a file in it
+  PASS  Nextcloud-created file is owned by milosvasic
+  PASS  Nextcloud-created dir is owned by milosvasic
+  PASS  SMB reads the Nextcloud-created file
+  PASS  SMB modifies the Nextcloud-created file
+  PASS  SMB adds a file next to it
+  PASS  SMB renames the Nextcloud-created file
+  PASS  Nextcloud serves the SMB-modified content
+== 7. SMB -> remove
+  PASS  delete the Nextcloud-created file
+  PASS  delete the SMB-created text file
+  PASS  delete a nested file
+  PASS  remove nested directories (deepest first)
+  PASS  remove the Nextcloud-created directory
+  PASS  everything is gone on disk
+  PASS  Nextcloud no longer lists the deleted entries
+  PASS  remove the test directory itself
+  PASS  test directory is gone on disk
+
+38 passed, 0 failed

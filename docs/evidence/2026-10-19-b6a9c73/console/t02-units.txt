@@ -1,0 +1,141 @@
+
+== t02: systemd user units, containers, ports
+  PASS  nextcloud-network.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-network.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-network.service Quadlet source file exists
+  PASS  nextcloud-db.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-db.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-db.service Quadlet source file exists
+  PASS  nextcloud-redis.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-redis.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-redis.service Quadlet source file exists
+  PASS  nextcloud-app.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-app.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-app.service Quadlet source file exists
+  PASS  nextcloud-cron.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-cron.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-cron.service Quadlet source file exists
+  PASS  nextcloud-caddy.service is a generated unit (fragment under /run/user/1000/systemd/generator)
+  PASS  nextcloud-caddy.service SourcePath is a Quadlet file in the user's containers/systemd dir
+  PASS  nextcloud-caddy.service Quadlet source file exists
+  PASS  nextcloud-db.service ActiveState
+  PASS  nextcloud-db.service SubState
+  PASS  nextcloud-redis.service ActiveState
+  PASS  nextcloud-redis.service SubState
+  PASS  nextcloud-app.service ActiveState
+  PASS  nextcloud-app.service SubState
+  PASS  nextcloud-cron.service ActiveState
+  PASS  nextcloud-cron.service SubState
+  PASS  nextcloud-caddy.service ActiveState
+  PASS  nextcloud-caddy.service SubState
+  PASS  nextcloud-network.service ActiveState
+  PASS  nextcloud-network.service SubState
+  PASS  podman network nextcloud-net exists
+  PASS  the network has a subnet
+  PASS  nextcloud-db.service Restart=
+  PASS  nextcloud-db.service is wanted by default.target (generator symlink)
+  PASS  nextcloud-db.service appears in default.target's dependency tree
+  PASS  nextcloud-redis.service Restart=
+  PASS  nextcloud-redis.service is wanted by default.target (generator symlink)
+  PASS  nextcloud-redis.service appears in default.target's dependency tree
+  PASS  nextcloud-app.service Restart=
+  PASS  nextcloud-app.service is wanted by default.target (generator symlink)
+  PASS  nextcloud-app.service appears in default.target's dependency tree
+  PASS  nextcloud-cron.service Restart=
+  PASS  nextcloud-cron.service is wanted by default.target (generator symlink)
+  PASS  nextcloud-cron.service appears in default.target's dependency tree
+  PASS  nextcloud-caddy.service Restart=
+  PASS  nextcloud-caddy.service is wanted by default.target (generator symlink)
+  PASS  nextcloud-caddy.service appears in default.target's dependency tree
+  PASS  negative control: a made-up unit is NOT wanted by default.target
+  PASS  linger enabled for milosvasic
+  PASS  app Requires nextcloud-db.service
+  PASS  app starts After nextcloud-db.service
+  PASS  app Requires nextcloud-redis.service
+  PASS  app starts After nextcloud-redis.service
+  PASS  cron Requires nextcloud-app.service
+  PASS  cron starts After nextcloud-app.service
+  PASS  caddy Wants nextcloud-app.service
+  PASS  caddy starts After nextcloud-app.service
+  PASS  caddy does NOT hard-Require app (a web restart must not stop TLS)
+  PASS  negative control: db does not Require app
+  PASS  nextcloud-db.service starts After nextcloud-network.service
+  PASS  nextcloud-redis.service starts After nextcloud-network.service
+  PASS  nextcloud-app.service starts After nextcloud-network.service
+  PASS  nextcloud-cron.service starts After nextcloud-network.service
+  PASS  nextcloud-caddy.service starts After nextcloud-network.service
+  PASS  the only containers named *nextcloud* are the five stack containers
+  PASS  nextcloud-db label PODMAN_SYSTEMD_UNIT
+  PASS  nextcloud-db is not a compose container (no compose project label)
+  PASS  nextcloud-db state
+  PASS  nextcloud-redis label PODMAN_SYSTEMD_UNIT
+  PASS  nextcloud-redis is not a compose container (no compose project label)
+  PASS  nextcloud-redis state
+  PASS  nextcloud-app label PODMAN_SYSTEMD_UNIT
+  PASS  nextcloud-app is not a compose container (no compose project label)
+  PASS  nextcloud-app state
+  PASS  nextcloud-cron label PODMAN_SYSTEMD_UNIT
+  PASS  nextcloud-cron is not a compose container (no compose project label)
+  PASS  nextcloud-cron state
+  PASS  nextcloud-caddy label PODMAN_SYSTEMD_UNIT
+  PASS  nextcloud-caddy is not a compose container (no compose project label)
+  PASS  nextcloud-caddy state
+  PASS  nextcloud-db health (83 ms)
+  PASS  nextcloud-redis health (95 ms)
+  PASS  nextcloud-app health (84 ms)
+  PASS  no failed nextcloud-* units
+  PASS  configured image for db is non-empty
+  PASS  nextcloud-db runs the configured image
+  PASS  configured image for redis is non-empty
+  PASS  nextcloud-redis runs the configured image
+  PASS  configured image for app is non-empty
+  PASS  nextcloud-app runs the configured image
+  PASS  configured image for cron is non-empty
+  PASS  nextcloud-cron runs the configured image
+  PASS  configured image for caddy is non-empty
+  PASS  nextcloud-caddy runs the configured image
+  PASS  app and cron run the same image (no version drift)
+  PASS  nextcloud-db NRestarts is numeric
+  PASS  nextcloud-db did not restart during the 10 s window (0 -> 0)
+  PASS  nextcloud-redis NRestarts is numeric
+  PASS  nextcloud-redis did not restart during the 10 s window (0 -> 0)
+  PASS  nextcloud-app NRestarts is numeric
+  PASS  nextcloud-app did not restart during the 10 s window (0 -> 0)
+  PASS  nextcloud-cron NRestarts is numeric
+  PASS  nextcloud-cron did not restart during the 10 s window (0 -> 0)
+  PASS  nextcloud-caddy NRestarts is numeric
+  PASS  nextcloud-caddy did not restart during the 10 s window (0 -> 0)
+  PASS  app publishes exactly HTTP 0.0.0.0:8080 -> 80/tcp
+  PASS  caddy publishes exactly HTTPS 0.0.0.0:52443 -> 443 tcp+udp
+  PASS  nextcloud-db publishes nothing
+  PASS  nextcloud-db has no PortBindings in its config
+  PASS  nextcloud-redis publishes nothing
+  PASS  nextcloud-redis has no PortBindings in its config
+  PASS  nextcloud-cron publishes nothing
+  PASS  nextcloud-cron has no PortBindings in its config
+  PASS  host listens on tcp 8080
+  PASS  host listens on tcp 52443
+  PASS  host listens on udp 52443 (HTTP/3)
+  PASS  negative control: nothing of ours listens on an unrelated tcp port (52444)
+  PASS  the whole stack publishes exactly three host sockets
+  PASS  nextcloud-app runs with the pinned user namespace keep-id:uid=N,gid=N
+  PASS  nextcloud-db runs with the pinned user namespace keep-id:uid=N,gid=N
+  PASS  nextcloud-redis runs with the pinned user namespace keep-id:uid=N,gid=N
+  PASS  nextcloud-cron runs with the pinned user namespace keep-id:uid=N,gid=N
+  PASS  nextcloud-caddy has no user-namespace override (container-root maps to you)
+  PASS  app and cron pin the same ids
+  PASS  nextcloud-db reports healthy (82 ms)
+  PASS  nextcloud-redis reports healthy (73 ms)
+  PASS  nextcloud-app reports healthy (71 ms)
+  PASS  nextcloud-cron reports healthy (73 ms)
+  PASS  nextcloud-caddy reports healthy (68 ms)
+  PASS  nextcloud-db has a healthcheck command configured
+  PASS  nextcloud-redis has a healthcheck command configured
+  PASS  nextcloud-app has a healthcheck command configured
+  PASS  nextcloud-cron has a healthcheck command configured
+  PASS  nextcloud-caddy has a healthcheck command configured
+  PASS  cron's healthcheck command succeeds in the cron container
+  PASS  negative control: cron's healthcheck FAILS where no crond runs (app container)
+  PASS  caddy's healthcheck target answers on its admin port
+  PASS  negative control: the same probe on a wrong port FAILS
+-- t02: 138 passed, 0 failed, 0 skipped (23614 ms)
