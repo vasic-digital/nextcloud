@@ -132,9 +132,12 @@ services:
     volumes:
       # Program files, config.php, apps and themes.
       - html:/var/www/html
-      # User data. Kept as a separate volume so backups can treat the
-      # (irreplaceable) user files independently from the (rebuildable) code.
-      - data:/var/www/html/data
+      # User data — bind mount from host path (configurable via .env, .badhrc,
+      # .zshrc or compose.yaml params). Mounted at /var/www/html/data inside the
+      # container. Replace DATA_HOST_PATH to change the host path.
+      - ${DATA_HOST_PATH}:/var/www/html/data
+      # --- system needs — additional bind mount -----------------------------
+      - ${CONTAINER_HOST_PATH}:/var/www/html/container
       # Idempotent configuration applied on every start.
       - ./config/nextcloud-hooks:/docker-entrypoint-hooks.d:ro
 
@@ -159,13 +162,14 @@ services:
       TZ: ${TZ:-UTC}
     volumes:
       - html:/var/www/html
-      - data:/var/www/html/data
+      # User data — same bind mount as app
+      - ${DATA_HOST_PATH}:/var/www/html/data
+      # System needs — same bind mount as app
+      - ${CONTAINER_HOST_PATH}:/var/www/html/container
 
 volumes:
   html:
     name: nextcloud-html
-  data:
-    name: nextcloud-data
   db:
     name: nextcloud-db
   redis:

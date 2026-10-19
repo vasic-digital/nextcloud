@@ -334,10 +334,17 @@ wait_for_db() {
 # that has to be stripped. Ownership is preserved because the helper runs as
 # root inside the container.
 volume_restore() {
-    local volume="$1" archive="$2" backup_dir="$3"
+    local archive="$1" backup_dir="$2"
+
+    # Restore user data from the host path specified in .env.
+    local host_data_path
+    host_data_path="$(env_get DATA_HOST_PATH)"; host_data_path="${host_data_path:-${DATA_HOST_PATH:-}}"
+    if [ -z "$host_data_path" ] || [ ! -d "$host_data_path" ]; then
+        die "DATA_HOST_PATH not set or directory does not exist: $host_data_path"
+    fi
 
     podman run --rm \
-        -v "${volume}:/target" \
+        -v "${host_data_path}:/target:Z" \
         -v "${backup_dir}:/backup:Z" \
         "$HELPER_IMAGE" \
         sh -c "rm -rf /target/* /target/.[!.]* 2>/dev/null || true
@@ -489,7 +496,8 @@ cmd_creds() {
 
 cmd_backup() {
     require_cmd podman
-    local stamp dir dbname
+    local stamp dir dbname archive
+    archive="data"
     stamp="$(date +%Y%m%d-%H%M%S)"
     dir="$PROJECT_DIR/backups/$stamp"
     dbname="$(env_get DB_NAME)"; dbname="${dbname:-nextcloud}"
@@ -507,8 +515,21 @@ cmd_backup() {
     ok "database.sql.gz ($(du -h "$dir/database.sql.gz" | cut -f1))"
 
     step "Archiving user data"
-    volume_backup "$VOL_DATA" "data" "$dir"
-    ok "data.tar.gz ($(du -h "$dir/data.tar.gz" | cut -f1))"
+    # Back up the user data directory from the host path specified in .env.
+    # We tar the host directory directly rather than using a named volume,
+    # since the data is now accessed via bind mount.
+    local host_data_path
+    host_data_path="$(env_get DATA_HOST_PATH)"; host_data_path="${host_data_path:-${DATA_HOST_PATH:-}}"
+    if [ -z "$host_data_path" ] || [ ! -d "$host_data_path" ]; then
+        warn "DATA_HOST_PATH not set or directory does not exist; skipping data backup"
+    else
+        podman run --rm \
+            -v "${host_data_path}:/source:Z" \
+            -v "$dir:/backup:Z" \
+            "$HELPER_IMAGE" \
+            tar czf "/backup/${archive}.tar.gz" -C /source .
+        ok "data.tar.gz ($(du -h "$dir/data.tar.gz" | cut -f1))"
+    fi
 
     step "Archiving config.php"
     # config.php holds the instanceid, secret and passwordsalt. Without it a
@@ -601,8 +622,8 @@ cmd_restore() {
     ok "database imported from database.sql.gz"
 
     step "Restoring user data"
-    volume_restore "$VOL_DATA" "data.tar.gz" "$backup_dir"
-    ok "user files restored into $VOL_DATA"
+    volume_restore "data.tar.gz" "$backup_dir"
+    ok "user files restored into data directory"
 
     step "Restoring config.php"
     volume_restore_subdir "$VOL_HTML" "config" "config.tar.gz" "$backup_dir"
