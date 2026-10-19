@@ -1,0 +1,78 @@
+auto_https disable_redirects
+
+# HTTP/3 (QUIC) explicit at the edge: h1 (HTTP/1.1) + h2 (HTTP/2 over TLS) +
+# h3 (HTTP/3 over QUIC/UDP). Caddy already serves h3 on :443 by default; this
+# pins it explicitly. QUIC needs UDP/443 PUBLISHED — see compose.codeserver.yml
+# (0.0.0.0:52443:443/udp) alongside the TCP mapping.
+servers {
+	protocols h1 h2 h3
+}
+
+:443 {
+	# Self-signed cert (SAN: localhost + 127.0.0.1 + detected LAN IPs),
+	# generated per boot by up.sh. Served for all SNI so LAN-by-IP access works
+	# inside the port-mapped container (a bare `tls internal` site has no
+	# hostnames to issue a leaf cert for and aborts every handshake).
+	tls /etc/caddy/tls/site.crt /etc/caddy/tls/site.key
+
+	# Brotli compression (provided by ueffel/caddy-brotli image)
+	encode zstd br gzip
+
+	# === NEXTCLCoud REVERSE PROXY ===
+	# Access Nextcloud at https://<host>:52443/nextcloud
+	@nextcloud path /nextcloud /nextcloud/*
+	reverse_proxy nextcloud-app:80
+	# ===============================
+
+	# /login, /logout and the auth service's own static assets are served by
+	# helix-auth directly (NOT behind the gate — needed in order to log in).
+	@helix_auth path /login /login/* /logout /auth /healthz /_helixauth/*
+	handle @helix_auth {
+		# reverse_proxy sets X-Forwarded-For by default, so the gate sees the real
+		# client IP on /login too and rate-limits login attempts per client
+		# (HELIX_AUTH_TRUST_FORWARDED_FOR=true keys on the rightmost XFF entry).
+		reverse_proxy host.containers.internal:8081
+	}
+	# Defense-in-depth: block code-server's built-in port-proxy feature at the edge
+	# (CVE-2025-47269 class — session-cookie exfil via a crafted /proxy/ URL;
+	# FINDINGS Angle 2/4). HelixCode does not use it => 403 so such a request never
+	# reaches code-server, even though 4.117.0 is already patched.
+	@cs_proxy path /proxy/* /absproxy/*
+	handle @cs_proxy {
+		respond 403
+	}
+	# Everything else is the protected editor: forward-auth check first (a copy
+	# of the request goes to helix-auth's /auth; 2xx => allow, else Caddy
+	# returns the gate's response — down/erroring gate => denied, never bypassed),
+	# then reverse_proxy to host-native code-server on success.
+	handle {
+		# X-Helix-User integrity + per-client rate-limit keying.
+		# (1) A CLIENT-supplied X-Helix-User MUST NEVER reach code-server: the gate
+		#     sets X-Helix-User on its /auth RESPONSE and forward_auth's copy_headers
+		#     propagates ONLY that auth-derived value. We DELETE any inbound client
+		#     value FIRST (request_header -X-Helix-User) so the request forward_auth
+		#     copies onto is already clean — closing the copy_headers identity-
+		#     injection class (Caddy GHSA-7r4p-vjf4-gxv4): even if the gate ever
+		#     returned 2xx WITHOUT setting the header, no client value could survive.
+		#     NB: deleting on the code-server reverse_proxy (header_up -X-Helix-User)
+		#     would instead strip the gate's value that copy_headers just set on the
+		#     request — so the strip MUST precede forward_auth; the `route` pins that
+		#     execution order (handle sorts by directive order, route runs in written
+		#     order).
+		# (2) X-Forwarded-For: Caddy is the SOLE trusted hop (no trusted_proxies), so
+		#     it ignores client-sent XFF and sets it to the real client IP, which
+		#     forward_auth passes to the gate; the gate keys its per-client rate-limit
+		#     on the RIGHTMOST XFF entry (HELIX_AUTH_TRUST_FORWARDED_FOR=true).
+		route {
+			request_header -X-Helix-User
+			forward_auth host.containers.internal:8081 {
+				uri /auth
+				copy_headers X-Helix-User
+			}
+			reverse_proxy host.containers.internal:8080
+		}
+	}
+}
+:80 {
+	redir https://{host}:52443{uri} permanent
+}

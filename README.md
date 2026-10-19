@@ -906,6 +906,46 @@ host is **not** touched, which is exactly why `config.tar.gz` is in it.
 This stack was exercised end-to-end rather than assumed to work. As of the last
 run:
 
+- **Stack** — all five containers healthy (`nextcloud-app`, `nextcloud-caddy`,
+  `nextcloud-db`, `nextcloud-redis`, `nextcloud-cron`); `nextcloud-app` publishing
+  `0.0.0.0:8080->80/tcp`, `nextcloud-caddy` publishing
+  `0.0.0.0:52080->80/tcp` (HTTP) and `0.0.0.0:52443->443/tcp+udp` (HTTPS/HTTP3).
+- **Web** — `http://localhost:8080/status.php` →
+  `{"installed":true,"maintenance":false,"needsDbUpgrade":false,"version":"35.0.2.2"}`
+  and the LAN address answers `200`.
+- **HTTPS via Caddy** — `https://localhost:52443/status.php` works with a
+  self-signed certificate (SAN: `localhost`, `127.0.0.1`, detected LAN IPs).
+  Certificate is generated on first start and persists in the `nextcloud-caddy-data`
+  volume.
+- **HTTP/3 (QUIC)** — Caddy serves `h1 h2 h3` protocols on `:443`. HTTP/3 is
+  enabled via QUIC over UDP. UDP port `52443` must be reachable (it is LAN-only).
+- **Brotli compression** — Caddy (`ueffel/caddy-brotli`) serves `zstd br gzip`
+  encoding, negotiated per the client's `Accept-Encoding` header.
+- **Nextcloud behind Caddy** — Nextcloud is accessible at
+  `https://<host>:52443/nextcloud` (note the `/nextcloud` path prefix).
+  The Caddyfile reverse proxies to `nextcloud-app:80`.
+- **Runtime caching** — resolved through Nextcloud's own `ICacheFactory`:
+  local `APCu`, distributed and locking `Redis`, PHP session handler `redis`,
+  with live `PHPREDIS_SESSION:*` keys present in Redis.
+- **Hook** — `==> nextcloud-tuning: configuration applied` on every start;
+  `maintenance_window_start=1` and `lost_password_link=disabled` present.
+- **Background jobs** — `backgroundjobs_mode = cron`, `nextcloud-cron` logging
+  `crond (busybox 1.37.0) started`.
+- **Database** — healthcheck passing, 138 tables.
+- **Backup** — produced `database.sql.gz` (240 KB), `data.tar.gz` (61 MB),
+  `config.tar.gz` (36 KB), `env.backup`, `compose.yaml.backup`.
+- **Destroy** — `echo DELETE | ./setup.sh destroy` removed all five containers,
+  all five volumes and `nextcloud-net`.
+- **Restore** — from a completely destroyed state,
+  `./setup.sh restore <timestamp>` came back up with the **same instance id**
+  (`ocvhsvisemzq`), the `admin` account, `background:cron` applied, and
+  `files:scan --all` reporting **5 folders / 64 files / 0 errors**. The data
+  directory contains `appdata_ocvhsvisemzq`, matching the restored id.
+
+Versions in this run: Nextcloud 35.0.2.2 (PHP 8.5.11), MariaDB 11.8.9,
+Redis 7.4.9, Podman 5.7.1 (rootless), Caddy 2 (ueffel/caddy-brotli:2),
+`podman-compose` 1.5.0, on ALT Starterkit 11 (kernel 6.12.61).
+
 - **Stack** — all four containers healthy; `nextcloud-app` publishing
   `0.0.0.0:8080->80/tcp`.
 - **Web** — `http://localhost:8080/status.php` →
