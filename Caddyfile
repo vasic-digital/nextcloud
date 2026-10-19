@@ -13,10 +13,11 @@
 :443 {
 	tls /etc/caddy/tls/site.crt /etc/caddy/tls/site.key
 
-	# zstd/br/gzip (Brotli comes from the helixcode-caddy-brotli image).
+	# zstd/br/gzip (Brotli comes from the image built from docker/caddy).
 	encode zstd br gzip
 
 	# Caddy sets X-Forwarded-For/-Proto/-Host itself. Nextcloud honours them
-	# because the proxy's address is listed in TRUSTED_PROXIES (compose.yaml).
-	reverse_proxy nextcloud-app:80
+	# because the proxy's address is listed in TRUSTED_PROXIES (set in .run/app.env by setup.sh).
+	# The upstream comes from the environment (.run/caddy.env, written by setup.sh).
+	reverse_proxy {$NEXTCLOUD_UPSTREAM}
 }

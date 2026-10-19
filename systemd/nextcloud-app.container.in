@@ -1,0 +1,48 @@
+# Nextcloud web front end (Apache + mod_php). Plain HTTP; Caddy adds TLS.
+#
+# Every file Nextcloud writes — including the user data directory that Samba
+# shares — is owned by the host user `@USER@`. UserNS=keep-id maps the image's
+# web account (@APP_RUN_USER@, uid:gid @APP_UID@:@APP_GID@ — discovered from the
+# image by setup.sh) onto that user, and Apache/PHP run as it. Without this,
+# the web account was a sub-UID and SMB writes failed with
+# NT_STATUS_ACCESS_DENIED.
+#
+# NO process in this container is root. The image's entrypoint writes
+# /usr/local/etc/php/conf.d/redis-session.ini (inside the image layer, root-owned)
+# when REDIS_HOST is set; a host-owned file is mounted at that path instead, so
+# the entrypoint can overwrite it as the unprivileged user. If a future image
+# moves that file, the entrypoint fails loudly ("Permission denied") — update the
+# path below.
+[Unit]
+Description=Nextcloud — web application
+Documentation=file://@PROJECT_DIR@/README.md
+Requires=nextcloud-db.service nextcloud-redis.service
+After=nextcloud-db.service nextcloud-redis.service
+
+[Container]
+ContainerName=nextcloud-app
+Image=@NEXTCLOUD_IMAGE@
+Network=nextcloud.network
+UserNS=keep-id:uid=@APP_UID@,gid=@APP_GID@
+# A non-root Apache must be allowed to bind :80 inside the container's own
+# network namespace (this does not affect the host).
+Sysctl=net.ipv4.ip_unprivileged_port_start=0
+PublishPort=@BIND@:@PORT@:80
+EnvironmentFile=@PROJECT_DIR@/.run/app.env
+# Program files, config.php, apps and themes.
+Volume=nextcloud-html:/var/www/html
+# User data: a bind mount from a host path, so it can be shared (e.g. via SMB).
+Volume=@DATA_HOST_PATH@:/var/www/html/data
+# Host-owned stand-in for the file the entrypoint rewrites (see above).
+Volume=@PROJECT_DIR@/.run/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
+# Idempotent configuration applied on every start.
+Volume=@PROJECT_DIR@/config/nextcloud-hooks:/docker-entrypoint-hooks.d:ro
+
+[Service]
+Restart=always
+RestartSec=3
+# First start installs Nextcloud, which can take a few minutes.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

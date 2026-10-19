@@ -1,0 +1,30 @@
+# Redis — cache, transactional file locking and PHP sessions. NOT published.
+[Unit]
+Description=Nextcloud — Redis
+Documentation=file://@PROJECT_DIR@/README.md
+
+[Container]
+ContainerName=nextcloud-redis
+Image=@REDIS_IMAGE@
+Network=nextcloud.network
+NetworkAlias=redis
+# The image's service account (@REDIS_RUN_USER@, @REDIS_UID@:@REDIS_GID@) is discovered by
+# setup.sh and mapped onto the invoking user.
+UserNS=keep-id:uid=@REDIS_UID@,gid=@REDIS_GID@
+Volume=nextcloud-redis:/data
+# Persist at most once a minute: the cache is disposable, so AOF stays off.
+Exec=redis-server --save 60 1 --loglevel warning
+HealthCmd=redis-cli ping
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=12
+HealthStartPeriod=10s
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=3
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

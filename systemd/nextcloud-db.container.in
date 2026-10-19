@@ -1,0 +1,36 @@
+# MariaDB — the Nextcloud database. NOT published to the host.
+#
+# Runs as host user `@USER@`: UserNS=keep-id maps the image's service account
+# (@DB_RUN_USER@, uid:gid @DB_UID@:@DB_GID@ — discovered from the image by
+# setup.sh, never hard-coded) onto the invoking user, so the data directory in
+# the volume is owned by you.
+[Unit]
+Description=Nextcloud — MariaDB
+Documentation=file://@PROJECT_DIR@/README.md
+
+[Container]
+ContainerName=nextcloud-db
+Image=@DB_IMAGE@
+Network=nextcloud.network
+# Nextcloud's config.php stores the host name `db`; keep it resolvable.
+NetworkAlias=db
+UserNS=keep-id:uid=@DB_UID@,gid=@DB_GID@
+EnvironmentFile=@PROJECT_DIR@/.run/db.env
+Volume=nextcloud-db:/var/lib/mysql
+# Nextcloud's own documentation recommends these for InnoDB.
+Exec=--transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-buffer-pool-size=@DB_BUFFER_POOL@ --skip-name-resolve
+HealthCmd=healthcheck.sh --connect --innodb_initialized
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=12
+HealthStartPeriod=60s
+# systemd only considers the unit started (and starts dependants) once healthy.
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=3
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

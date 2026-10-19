@@ -13,7 +13,7 @@
 #    apcu.config.php   -> memcache.local = APCu            (always)
 #    redis.config.php  -> memcache.distributed, memcache.locking and the
 #                         whole redis{host,port,password} block
-#                         (only when REDIS_HOST is set — see compose.yaml)
+#                         (only when REDIS_HOST is set — see systemd/nextcloud-app.container.in)
 #
 #  So the caching and locking story is "set REDIS_HOST in .env", not "add an
 #  occ call here". Duplicating it would leave values in config.php that are
@@ -25,7 +25,7 @@
 #  on purpose: a half-configured instance is worse than one that refuses to
 #  start.
 #
-#  Mounted read-only from ./config/nextcloud-hooks — see compose.yaml.
+#  Mounted read-only from ./config/nextcloud-hooks — see systemd/nextcloud-app.container.in.
 # ---------------------------------------------------------------------------
 
 set -eu
@@ -50,7 +50,7 @@ fi
 
 # --- background jobs belong to the `cron` service, not to page loads -------
 # Nextcloud's default mode is "ajax": it fires background jobs opportunistically
-# during web requests. The `cron` service in compose.yaml runs cron.php every
+# during web requests. The `cron` service (nextcloud-cron.service) runs cron.php every
 # five minutes instead, so the instance must be told to stop doing it in-band.
 # Stored as app config (core / backgroundjobs_mode), not system config.
 $OCC background:cron
@@ -59,6 +59,12 @@ $OCC background:cron
 # Run heavy maintenance at 01:00 local time instead of on the hour, so nightly
 # jobs do not compete with evening uploads.
 $OCC config:system:set maintenance_window_start --type=integer --value='1'
+
+# The data directory is shared with the host (e.g. over SMB), so files are added,
+# changed and removed behind Nextcloud's back. 1 = re-check a folder against the
+# filesystem every time it is listed, so those changes show up immediately
+# instead of after a manual `occ files:scan`.
+$OCC config:system:set filesystem_check_changes --type=integer --value='1'
 
 # Base URL for links generated outside a web request (mail, occ, cron).
 if [ -n "${NEXTCLOUD_OVERWRITE_CLI_URL:-}" ]; then

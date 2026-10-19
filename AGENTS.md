@@ -11,21 +11,61 @@ HTTPS is provided by a Caddy front end with a **self-signed** certificate. There
 is no public exposure and adding one (public DNS, ACME, port forwarding) is out
 of scope.
 
-The stack is a compose project (`compose.yaml`) driven by `setup.sh`:
+The stack is five **`systemctl --user` services** (Podman Quadlet) driven by
+`setup.sh`. The unit *templates* are `systemd/*.in`; `setup.sh` renders them into
+`~/.config/containers/systemd/` and Podman's generator turns them into
+`nextcloud-<svc>.service`. There is **no compose file** any more.
 
 | Service | Image | Notes |
 | --- | --- | --- |
-| `app` | `nextcloud:35-apache` | plain HTTP, published `${NEXTCLOUD_PORT:-8080} → 80` (`.env` here uses `8280`: `8080`/`8081` belong to code-server / helix-auth) |
-| `caddy` | `localhost/helixcode-caddy-brotli:2` | TLS terminator, published `52443 → 443` tcp+udp (HTTP/3); proxies to `app:80` |
+| `app` | `nextcloud:35-apache` | plain HTTP, published `${NEXTCLOUD_PORT:-8080} → 80` |
+| `caddy` | `localhost/nextcloud-caddy-brotli:2` (built from `docker/caddy`, never pulled) | TLS terminator, published `${NEXTCLOUD_HTTPS_PORT:-52443} → 443` tcp+udp (HTTP/3); proxies to `app:80` |
 | `db` | `mariadb:11` | **not** published to the host |
 | `redis` | `redis:7-alpine` | cache + file locking + PHP sessions; **not** published |
 | `cron` | same image as `app` | `entrypoint: /cron.sh` |
 
-`app` and `cron` share the image through the `x-nextcloud-image` YAML anchor.
-**Edit the anchor, never the two `image:` lines** — that anchor is what stops the
-two services from drifting to different versions.
+`NEXTCLOUD_BIND` applies to **both** published ports (HTTP and HTTPS); there is no
+HTTP-only bind. `setup.sh` refuses placeholder secrets (`change-me`) and a relative
+`DATA_HOST_PATH`. Health probes use `NEXTCLOUD_BIND` (127.0.0.1 when it is `0.0.0.0`).
+
+`app` and `cron` share one image value (`image_of nextcloud` in `setup.sh`,
+default `DEFAULT_NEXTCLOUD_IMAGE`, override `NEXTCLOUD_IMAGE` in `.env`). **Change
+that one value, never the rendered units** — it is what stops the two services
+from drifting to different versions.
 
 ## Hard constraints
+
+### 0. Nothing is hard-coded; everything runs as the invoking user
+
+- **No literal uid, gid, path, port, subnet or user name** in `setup.sh`, the unit
+  templates or the tests. The host user comes from `id`; each service account's
+  uid/gid is read **from its image** (`service_ids`/`image_account_ids`), with
+  optional `.env` overrides (`APP_/DB_/REDIS_` `RUN_USER`/`UID`/`GID`); the
+  proxy subnet is read from the Podman network; images, ports, data path come from
+  `.env`. Do not "simplify" any of this back into constants such as `33`, `999`,
+  `1000`, `100032` or `10.89.0.0/16`.
+- Every container uses `UserNS=keep-id:uid=<img uid>,gid=<img gid>`, so
+  `www-data`/`mysql`/`redis` **are** the login user on the host. This is what makes
+  files shared over Samba writable. `db`, `redis` and `app` are fully unprivileged.
+  Two container-root processes exist: `caddy` (no `keep-id`, so its root **is** the
+  login user) and `cron`'s `crond` (`User=root`, required by busybox `crond` for
+  `setgroups()`; under `keep-id` that root is a host **sub-uid** that writes
+  nothing, and the jobs it launches run as the web account = the login user).
+  Invariant: **every process that writes files, and every file, belongs to you.**
+  Do not claim "no process runs as a sub-uid".
+- `app` runs non-root; the entrypoint's `redis-session.ini` write is satisfied by
+  a host-owned file mounted from `.run/` (see `nextcloud-app.container.in`).
+  If an image bump makes the entrypoint fail with "Permission denied", the path
+  moved — do not reach for `User=root` (it leaves root-owned sub-uid files in the
+  volumes).
+- Never use `chown`/`find -user` with a literal id. Use `podman unshare id` (what
+  the invoking user is *inside* Podman's namespace) or run the helper with
+  `--userns=keep-id` so it acts as the user.
+- The `html` volume's `data` mount-point directory must be created by us
+  (`prepare_html_volume`); if Podman creates it, it is owned by a sub-uid.
+- Prove ownership with the audit in `./setup.sh status`, and prove SMB behaviour
+  with `tests/smb-live-test.sh` (it has a documented negative control: give
+  `admin/files` to a sub-uid and it must fail).
 
 ### 1. Never hand-edit `config.php`
 
@@ -36,7 +76,7 @@ take precedence over `config.php`.
 Consequences:
 
 - To set something the image manages (Redis, APCu, anything env-driven), set the
-  **environment variable** in `compose.yaml` / `.env`. Do not call `occ`.
+  **environment variable** (`.env` → `.run/app.env` by `write_env_files`). Do not call `occ`.
 - Writing a managed key with `occ config:system:set` leaves a value in
   `config.php` that is silently shadowed at runtime — and that would suddenly
   become live if the env var were ever removed. This is how the earlier
@@ -69,12 +109,13 @@ preflight refuses to start if any is missing.
 
 ### 4. Volume names are load-bearing
 
-`nextcloud-html`, `nextcloud-data`, `nextcloud-db`, `nextcloud-redis` are given
-explicit `name:`s so they do not depend on the compose project prefix.
-`setup.sh backup`/`restore` mount them **by name**. Renaming a volume silently
+`nextcloud-html`, `nextcloud-db`, `nextcloud-redis`, `nextcloud-caddy-data` have fixed
+names. (`nextcloud-data` no longer exists: user data is the host directory
+`DATA_HOST_PATH`.)
+`setup.sh backup`/`restore` mount them **by name**; the Quadlet `Volume=` lines use the same names. Renaming a volume silently
 points the helpers at a new, empty volume.
 
-`nextcloud-html` is `/var/www/html`; `nextcloud-data` is `/var/www/html/data`.
+`nextcloud-html` is `/var/www/html`; the data directory is bind-mounted at `/var/www/html/data`.
 
 ### 5. `config.php` must be in every backup
 
@@ -90,22 +131,38 @@ Do not "optimise" it away.
 Podman copies the image's contents into a named volume **only while the volume
 is still empty**. Restoring `config/` into a never-populated `nextcloud-html`
 yields a container with no program files. Hence the deliberate order in
-`cmd_restore`: `compose up -d` (throwaway install) → wait → stop `app`+`cron` →
-replace DB / data / config → `compose up -d`.
+`cmd_restore`: validate the archives (`gzip -t` + `tar -t`; a bad backup is refused
+before anything is touched) → prompt (shows the backup dir **and** the data dir that
+will be emptied) → save the current `.env` as `.env.pre-restore.<timestamp>` and copy
+**only** the DB/admin credentials (`DB_NAME`, `DB_USER`, `DB_PASSWORD`,
+`DB_ROOT_PASSWORD`, `NEXTCLOUD_ADMIN_USER`, `NEXTCLOUD_ADMIN_PASSWORD`) from
+`env.backup` (ports, bind, `DATA_HOST_PATH`, images stay as on this machine) → stop
+the stack, remove the containers and the `nextcloud-html`/`-db`/`-redis` volumes
+(`nextcloud-caddy-data` is kept) → fix ownership and empty the data directory
+(failure is fatal, emptiness is verified) → start everything fresh (throwaway
+install) → wait → stop `caddy`+`cron`+`app` → drop/recreate/import the DB → restore
+data (as the invoking user, `--no-same-owner`) and `config.php` → start all five
+units → verify instance id and user count.
+The data directory **must be empty** for the throwaway install: the installer
+refuses ("Login is invalid because files already exist for this user") otherwise.
+`restore` with no argument picks the newest **complete** backup; a failed `backup`
+removes its partial directory.
 
 ### 7. Never `rm -rf /var/www/html/data` via `--volumes-from`
 
 `/var/www/html/data` is itself a mount point inside the app container, so it
 cannot be removed from a container that inherits the mounts — you get
-`Resource busy`. Mount `nextcloud-data` directly at a *different* path (which is
-what `volume_restore` does) and wipe that.
+`Resource busy`. Bind-mount `DATA_HOST_PATH` directly at a *different* path (the
+helpers mount it at `/target`, as the invoking user via `--userns=keep-id`) and
+wipe that.
 
 ### 8. Tar format is unified — do not diverge
 
 Both directions use busybox tar in a throwaway `alpine:3` container:
 
 - volume archives are made with `tar -C <parent> <dir>` and restored with
-  `--strip-components=1`;
+  `--strip-components=1`; helpers run with `--userns=keep-id` so extracted files
+  belong to the invoking user (`--no-same-owner`);
 - the config archive keeps its `config/` prefix and is restored *without*
   stripping, into the `html` volume.
 
@@ -118,13 +175,13 @@ Breaking either convention silently restores files to the wrong depth.
   only `Host: auto_https`/`off`, so real requests match no route and get an
   **empty HTTP 200** (the "blank page"). Keep the `{ auto_https off }` global
   block and the `:443 { … }` site block.
-- `tls /etc/caddy/tls/site.crt …` only works because compose mounts `./tls`
+- `tls /etc/caddy/tls/site.crt …` only works because the caddy unit mounts `./tls`
   there; `setup.sh ensure_tls` generates it. Do not point `tls` at a path that no
   mount provides.
 - Verify structure with `caddy adapt` (see README → *Reverse proxy*) before
   concluding anything about Nextcloud or Apache.
 - Nextcloud learns it is behind HTTPS via `TRUSTED_PROXIES` (env, in
-  `compose.yaml`). Do **not** set `overwriteprotocol`: it would break plain HTTP.
+  `.run/app.env`, written by `setup.sh`). Do **not** set `overwriteprotocol`: it would break plain HTTP.
   The keys `trustedProxies.*` and `overwrite.protocol` do not exist in Nextcloud;
   the real ones are `trusted_proxies` and `overwriteprotocol`.
 - Nextcloud is served at `/`, never under a `/nextcloud` prefix.
@@ -135,7 +192,18 @@ Breaking either convention silently restores files to the wrong depth.
   `pipefail` hazards when injected into `.env`); `od` is the fallback. `ensure_env`
   **never regenerates secrets when `.env` already exists**.
 - **Destructive commands ask for typed confirmation** (`destroy` → `DELETE`,
-  `restore` → `RESTORE`). Keep it that way.
+  `restore` → `RESTORE`). Keep it that way. `destroy` removes the containers, the
+  four named volumes (html, db, redis, caddy-data) and the network, **verifies** they
+  are gone (fails otherwise), never deletes `DATA_HOST_PATH`, and leaves the rendered
+  units installed in `~/.config/containers/systemd`.
+- **`legacy_cleanup`** (run by `up`/`restart`/`restore`) removes only leftover
+  non-Quadlet containers named exactly `nextcloud-db|-redis|-app|-cron|-caddy`
+  (`podman rm -f --depend`); volumes and data are untouched.
+- **`occ`** allocates stdin/TTY when run interactively (so `user:add` prompts work)
+  and runs as the web account from `APP_RUN_USER` (default `www-data`), not a literal.
+- **`backup` is not quiesced**: the DB dump is a transaction snapshot and the data tar
+  is taken afterwards from the live directory. For exact consistency wrap it in
+  `./setup.sh occ maintenance:mode --on` / `--off`.
 - **`cmd_help` reads the file's own header comment** via `awk`, not hard-coded
   line numbers. Keep the usage block as the leading comment block.
 - **Adding a subcommand** means: implement `cmd_<name>`, add it to the dispatch
@@ -149,8 +217,11 @@ Breaking either convention silently restores files to the wrong depth.
 bash -n setup.sh
 sh -n config/nextcloud-hooks/before-starting/10-nextcloud-tuning.sh
 ./setup.sh up
-curl -s http://localhost:8080/status.php     # "installed":true
+./setup.sh status                              # units active, ownership ok
+curl -s http://localhost:8080/status.php       # "installed":true
+curl -s --cacert tls/site.crt https://localhost:52443/status.php
 ./setup.sh occ status
+tests/smb-live-test.sh                         # live SMB add/modify/remove, 38 checks
 ```
 
 Do not state that the stack works from reading code. The `restore` path in
@@ -163,27 +234,34 @@ invisible until the volumes are actually gone.
 - **`backgroundjobs_mode` is app config.** `occ config:system:get
   backgroundjobs_mode` prints nothing and exits 1. That is correct; use
   `occ config:app:get core backgroundjobs_mode` (→ `cron`).
-- **`nextcloud-cron` takes ~10s to stop.** Busybox `crond` ignores `SIGWINCH`, so
-  Podman falls back to `SIGKILL`. Cosmetic; the container holds no state.
+- **`nextcloud-cron` and its stop signal.** Busybox `crond` is PID 1 in its container
+  and installs no signal handlers, and the kernel drops signals a PID 1 has no
+  handler for — so neither the image's `SIGWINCH` nor `SIGTERM` ever stopped it
+  (10 s timeout, `SIGKILL`, exit 137, unit `failed`). The unit therefore uses
+  `RunInit=yes` (a tiny init forwards the signal; stop takes ~0.3 s) plus
+  `StopSignal=SIGTERM` and `SuccessExitStatus=143`. Keep `User=root` for `crond`:
+  non-root `crond` silently never runs jobs (`can't set groups`).
+- **`nextcloud-network.service` stays "active"** after it ran (one-shot). If you
+  remove the network behind systemd's back, `ensure_network` restarts the unit.
 - **`RedisException` lines in `nextcloud.log` are usually historical**, captured
   while Redis/DB were bouncing during maintenance. Compare timestamps before
   reacting.
 - **`ls <glob>` inside a container fails** because `ls` does not expand globs.
   Wrap it: `podman exec nextcloud-app sh -c 'ls -d /var/www/html/data/appdata_*'`.
 
-## Residue not managed by compose
+## Residue not managed by this stack
 
 `nextcloud_aio_mastercontainer` (volume), `nextcloud/all-in-one:latest` and
 `nextcloud:latest` (images) are leftovers from an abandoned AIO attempt. AIO
 hard-requires `/var/run/docker.sock`, which rootless Podman cannot provide, so it
 is a dead end — do not retry it, and do not wire it back in. `setup.sh destroy`
-does not remove this residue because it is outside the compose project; removal
+does not remove this residue because it is outside this stack; removal
 is documented under *Cleanup* in `README.md`.
 
 ## Environment observed here
 
 ALT Starterkit 11 (kernel 6.12.61), 8 cores, 62 GB RAM, hostname `nezha`.
-Podman 5.7.1 (rootless), `podman-compose` 1.5.0. Required secrets live in `.env`
+Podman 5.7.1 (rootless), Quadlet, `systemd --user` with lingering. Required secrets live in `.env`
 (mode `0600`, git-ignored). `nft` is present but its ruleset is **not readable**
 by the host user, so VPN/firewall questions cannot be answered by inspecting
 `nft` — use `ip route` / `ip rule` instead.

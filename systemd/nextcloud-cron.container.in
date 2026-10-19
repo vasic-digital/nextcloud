@@ -1,0 +1,41 @@
+# Background jobs: the image's own /cron.sh (busybox crond, every 5 minutes).
+#
+# Jobs run as the image's web account (@APP_RUN_USER@), which UserNS=keep-id maps
+# onto the host user `@USER@`: every file a job touches is owned by you.
+# User=root is required for crond ITSELF: busybox crond calls setgroups() to switch
+# to the job's account and treats failure as fatal, so a non-root crond silently
+# never runs a job ("crond: can't set groups: Operation not permitted"). This
+# supervisor process writes nothing; it is the only container-root process.
+[Unit]
+Description=Nextcloud — background jobs (cron)
+Documentation=file://@PROJECT_DIR@/README.md
+Requires=nextcloud-app.service
+After=nextcloud-app.service
+
+[Container]
+ContainerName=nextcloud-cron
+Image=@NEXTCLOUD_IMAGE@
+Entrypoint=/cron.sh
+# busybox crond is PID 1 here and installs no signal handlers, and the kernel
+# drops signals a PID 1 has no handler for — so neither the image's SIGWINCH nor
+# SIGTERM ever stopped it: it sat out the timeout, was SIGKILLed (exit 137) and
+# systemd recorded the unit as failed. A minimal init as PID 1 forwards the
+# signal, so crond stops at once and normally.
+RunInit=yes
+StopSignal=SIGTERM
+Network=nextcloud.network
+UserNS=keep-id:uid=@APP_UID@,gid=@APP_GID@
+User=root
+EnvironmentFile=@PROJECT_DIR@/.run/cron.env
+Volume=nextcloud-html:/var/www/html
+Volume=@DATA_HOST_PATH@:/var/www/html/data
+
+[Service]
+# busybox crond exits via the signal itself (143) when asked to stop; that is a
+# normal stop, not a failure.
+SuccessExitStatus=143
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
