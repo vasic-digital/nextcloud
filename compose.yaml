@@ -29,6 +29,9 @@ x-common: &common
 # two can never drift apart in version.
 x-nextcloud-image: &nextcloud-image docker.io/library/nextcloud:35-apache
 
+# Caddy image with Brotli support (localhost/helixcode-caddy-brotli)
+x-caddy-image: &caddy-image localhost/helixcode-caddy-brotli:2
+
 services:
   # -------------------------------------------------------------------------
   # Database
@@ -167,6 +170,32 @@ services:
       # System needs — same bind mount as app
       
 
+# -------------------------------------------------------------------------
+# Caddy — reverse proxy with TLS, HTTP/3 (QUIC), and Brotli compression
+# -------------------------------------------------------------------------
+# Provides HTTPS with self-signed certificates (SAN: localhost, 127.0.0.1,
+# detected LAN IPs), HTTP/3 over QUIC, and Brotli compression.
+# Nextcloud is accessible at https://<host>:52443/nextcloud
+# -------------------------------------------------------------------------
+  caddy:
+    <<: *common
+    image: *caddy-image
+    container_name: nextcloud-caddy
+    ports:
+      # HTTP port
+      - "${NEXTCLOUD_BIND:-0.0.0.0}:5280:80"
+      # HTTPS + HTTP/3 (QUIC) port — UDP is required for QUIC
+      - "${NEXTCLOUD_BIND:-0.0.0.0}:52443:443/tcp"
+      - "${NEXTCLOUD_BIND:-0.0.0.0}:52443:443/udp"
+    environment:
+      # Caddy internal flag — config is loaded from the mounted Caddyfile
+      CADDY_LOCAL: "1"
+    volumes:
+      # Caddyfile with full configuration (TLS, HTTP/3, Brotli, reverse proxy)
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Persistent self-signed TLS certificates (generated on first start)
+      - caddy-data:/data
+
 volumes:
   html:
     name: nextcloud-html
@@ -174,6 +203,8 @@ volumes:
     name: nextcloud-db
   redis:
     name: nextcloud-redis
+  caddy-data:
+    name: nextcloud-caddy-data
 
 networks:
   nextcloud:
