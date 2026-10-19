@@ -1,6 +1,12 @@
-auto_https disable_redirects
+# Do NOT use auto HTTPS management — use our custom self-signed cert with proper SANs
+auto_https off
 
-tls internal
+# Self-signed cert with SANs: localhost, 127.0.0.1, nezha.local, amber.local, anton.local, and LAN IPs
+tls /etc/caddy/tls/site.crt /etc/caddy/tls/site.key
 
+# Brotli compression (provided by helixcode-caddy-brotli image)
+encode zstd br gzip
+
+# Nextcloud reverse proxy
 @nextcloud path /nextcloud /nextcloud*
 reverse_proxy nextcloud-app:80
