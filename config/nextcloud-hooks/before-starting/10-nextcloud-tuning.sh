@@ -56,9 +56,10 @@ fi
 $OCC background:cron
 
 # --- housekeeping ----------------------------------------------------------
-# Run heavy maintenance at 01:00 local time instead of on the hour, so nightly
+# Run heavy maintenance at NEXTCLOUD_MAINTENANCE_WINDOW_START (default 01:00 local
+# time, a UTC hour in Nextcloud's terms) instead of on the hour, so nightly
 # jobs do not compete with evening uploads.
-$OCC config:system:set maintenance_window_start --type=integer --value='1'
+$OCC config:system:set maintenance_window_start --type=integer --value="${NEXTCLOUD_MAINTENANCE_WINDOW_START:-1}"
 
 # The data directory is shared with the host (e.g. over SMB), so files are added,
 # changed and removed behind Nextcloud's back. 1 = re-check a folder against the

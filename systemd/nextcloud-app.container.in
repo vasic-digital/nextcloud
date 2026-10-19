@@ -28,13 +28,19 @@ UserNS=keep-id:uid=@APP_UID@,gid=@APP_GID@
 # network namespace (this does not affect the host).
 Sysctl=net.ipv4.ip_unprivileged_port_start=0
 PublishPort=@BIND@:@PORT@:80
-EnvironmentFile=@PROJECT_DIR@/.run/app.env
+EnvironmentFile=@RUN_DIR@/app.env
 # Program files, config.php, apps and themes.
-Volume=nextcloud-html:/var/www/html
+Volume=@VOL_HTML@:/var/www/html
 # User data: a bind mount from a host path, so it can be shared (e.g. via SMB).
 Volume=@DATA_HOST_PATH@:/var/www/html/data
+# Reports healthy once the web server answers (the image ships curl).
+HealthCmd=curl -fsS -o /dev/null http://localhost/status.php
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+HealthStartPeriod=300s
 # Host-owned stand-in for the file the entrypoint rewrites (see above).
-Volume=@PROJECT_DIR@/.run/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
+Volume=@RUN_DIR@/redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini
 # Idempotent configuration applied on every start.
 Volume=@PROJECT_DIR@/config/nextcloud-hooks:/docker-entrypoint-hooks.d:ro
 

@@ -15,8 +15,8 @@ Network=nextcloud.network
 # Nextcloud's config.php stores the host name `db`; keep it resolvable.
 NetworkAlias=db
 UserNS=keep-id:uid=@DB_UID@,gid=@DB_GID@
-EnvironmentFile=@PROJECT_DIR@/.run/db.env
-Volume=nextcloud-db:/var/lib/mysql
+EnvironmentFile=@RUN_DIR@/db.env
+Volume=@VOL_DB@:/var/lib/mysql
 # Nextcloud's own documentation recommends these for InnoDB.
 Exec=--transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-buffer-pool-size=@DB_BUFFER_POOL@ --skip-name-resolve
 HealthCmd=healthcheck.sh --connect --innodb_initialized

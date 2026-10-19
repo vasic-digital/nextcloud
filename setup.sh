@@ -20,18 +20,24 @@
 #                web account (interactive prompts work)
 #                e.g.  ./setup.sh occ user:add alice
 #    creds       print the generated administrator password
-#    backup      write a database dump plus data/config tarballs (not quiesced:
-#                use `occ maintenance:mode --on` around it for exact consistency)
+#    backup [--quiesce]
+#                write a database dump plus data/config tarballs; with
+#                --quiesce Nextcloud is in maintenance mode meanwhile, so the
+#                database and the files are captured in the same state
 #    restore [d] replace the current instance with a backup (default: newest
 #                complete one): verifies the archives, empties the data dir,
 #                recreates the html/db/redis volumes, restores files, database
 #                and config.php  (type RESTORE)
+#    uninstall   stop the services and remove the systemd units and generated
+#                env files; volumes, data, .env and tls/ are kept
 #    destroy     remove containers, network AND every named volume (type
 #                DELETE); the host data directory is never deleted
 #    help        this text
 #
 #  Every service runs as a `systemctl --user` unit (Podman Quadlet) and as YOUR
-#  user: nothing is written by a sub-UID, so files shared over SMB stay yours.
+#  user, so every file the stack writes is yours and files shared over SMB stay
+#  writable. (Only cron's `crond` supervisor is container-root, i.e. a host
+#  sub-uid; it writes nothing and its jobs run as you.)
 #  Everything is idempotent: running `up` twice does not create a second stack
 #  and never regenerates secrets that already exist in .env.
 # ===========================================================================
@@ -46,7 +52,9 @@ set -Eeuo pipefail
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR
 
-readonly ENV_FILE=".env"
+# These three can be redirected (tests render into throw-away directories without
+# touching the live stack); the defaults are what a normal run uses.
+readonly ENV_FILE="${NEXTCLOUD_ENV_FILE:-.env}"
 readonly ENV_EXAMPLE=".env.example"
 
 # systemd user units (Podman Quadlet). The templates in systemd/*.in are
@@ -54,8 +62,8 @@ readonly ENV_EXAMPLE=".env.example"
 # nextcloud-<service>.service. Per-service env files (they hold secrets) are
 # written to RUN_DIR, which is mode 0700 and git-ignored.
 readonly UNIT_SRC_DIR="systemd"
-readonly RUN_DIR=".run"
-readonly QUADLET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
+readonly RUN_DIR="${NEXTCLOUD_RUN_DIR:-.run}"
+readonly QUADLET_DIR="${NEXTCLOUD_QUADLET_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd}"
 readonly SERVICES=(db redis app cron caddy)       # start order
 readonly NETWORK_NAME="nextcloud-net"
 
@@ -76,9 +84,7 @@ readonly DEFAULT_DB_RUN_USER="mysql"
 readonly DEFAULT_REDIS_RUN_USER="redis"
 
 readonly APP_CONTAINER="nextcloud-app"
-readonly CRON_CONTAINER="nextcloud-cron"
 readonly DB_CONTAINER="nextcloud-db"
-readonly PROJECT_NAME="nextcloud"
 
 # Explicit volume names, matching the `Volume=` lines in systemd/*.in. The user
 # data lives in a host directory (DATA_HOST_PATH), not in a named volume.
@@ -507,6 +513,12 @@ write_env_files() {
 
     mkdir -p "$RUN_DIR"
     chmod 0700 "$RUN_DIR"
+    local admin_env=""
+    if ! instance_installed; then
+        admin_env="NEXTCLOUD_ADMIN_USER=${admin_user}
+NEXTCLOUD_ADMIN_PASSWORD=${admin_pass}
+"
+    fi
     (
         umask 077
         cat > "$RUN_DIR/db.env" <<EOF
@@ -524,23 +536,48 @@ MYSQL_USER=${db_user}
 MYSQL_PASSWORD=${db_pass}
 REDIS_HOST=redis
 REDIS_HOST_PORT=6379
-NEXTCLOUD_ADMIN_USER=${admin_user}
-NEXTCLOUD_ADMIN_PASSWORD=${admin_pass}
 NEXTCLOUD_TRUSTED_DOMAINS=${trusted}
 PHP_MEMORY_LIMIT=$(env_or PHP_MEMORY_LIMIT 512M)
 PHP_UPLOAD_LIMIT=$(env_or PHP_UPLOAD_LIMIT 16G)
 APACHE_BODY_LIMIT=$(env_or APACHE_BODY_LIMIT 0)
 TZ=${tz}
 TRUSTED_PROXIES=${proxies}
+NEXTCLOUD_MAINTENANCE_WINDOW_START=$(env_or NEXTCLOUD_MAINTENANCE_WINDOW_START 1)
 DEFAULT_PHONE_REGION=$(env_or DEFAULT_PHONE_REGION "")
 NEXTCLOUD_OVERWRITE_CLI_URL=$(env_or NEXTCLOUD_OVERWRITE_CLI_URL "")
 EOF
+        printf '%s' "$admin_env" >> "$RUN_DIR/app.env"
         printf 'TZ=%s\n' "$tz" > "$RUN_DIR/cron.env"
         # Writable by the container's (host-mapped) user; the image's entrypoint
         # fills it with the Redis session-handler settings on every start.
         [ -e "$RUN_DIR/redis-session.ini" ] || : > "$RUN_DIR/redis-session.ini"
         printf 'NEXTCLOUD_UPSTREAM=%s:80\n' "$APP_CONTAINER" > "$RUN_DIR/caddy.env"
     )
+}
+
+# Has the Nextcloud instance been installed yet? (config.php inside the html
+# volume says so.) The administrator credentials are only needed for that very
+# first install, so they are put into the app environment only until then —
+# afterwards they must not sit in the container's environment (`podman inspect`,
+# /proc/<pid>/environ) for the rest of its life.
+instance_installed() {
+    local mp
+    podman volume exists "$VOL_HTML" 2>/dev/null || return 1
+    mp="$(podman volume inspect -f '{{.Mountpoint}}' "$VOL_HTML" 2>/dev/null)" || return 1
+    podman unshare grep -qs "'installed' => true" "$mp/config/config.php"
+}
+
+# After the first install (or a restore) completes, rewrite the app environment
+# without the administrator credentials and restart the web containers once.
+scrub_install_secrets() {
+    grep -q '^NEXTCLOUD_ADMIN_PASSWORD=' "$RUN_DIR/app.env" 2>/dev/null || return 0
+    instance_installed || return 0
+    step "Removing the first-install administrator credentials from the app environment"
+    write_env_files
+    sctl restart "$(unit_of app)"
+    wait_for_web
+    mark_applied
+    ok "the app container no longer carries the administrator password"
 }
 
 # sed replacement-string escaping (\, & and the | delimiter).
@@ -560,6 +597,8 @@ render_units() {
     service_ids DB db
     service_ids REDIS redis
 
+    local run_abs
+    case "$RUN_DIR" in /*) run_abs="$RUN_DIR" ;; *) run_abs="$PROJECT_DIR/$RUN_DIR" ;; esac
     mkdir -p "$QUADLET_DIR" "$RUN_DIR"
     chmod 0700 "$RUN_DIR"
     for f in "$UNIT_SRC_DIR"/*.in; do
@@ -567,6 +606,10 @@ render_units() {
         out="$QUADLET_DIR/$(basename "${f%.in}")"
         sed \
             -e "s|@PROJECT_DIR@|$(sed_esc "$PROJECT_DIR")|g" \
+            -e "s|@RUN_DIR@|$(sed_esc "$run_abs")|g" \
+            -e "s|@NETWORK_NAME@|$(sed_esc "$NETWORK_NAME")|g" \
+            -e "s|@VOL_HTML@|$(sed_esc "$VOL_HTML")|g" -e "s|@VOL_DB@|$(sed_esc "$VOL_DB")|g" \
+            -e "s|@VOL_REDIS@|$(sed_esc "$VOL_REDIS")|g" -e "s|@VOL_CADDY@|$(sed_esc "$VOL_CADDY")|g" \
             -e "s|@DATA_HOST_PATH@|$(sed_esc "$data")|g" \
             -e "s|@USER@|$(sed_esc "$(me_user)")|g" \
             -e "s|@BIND@|$(sed_esc "$bind")|g" \
@@ -589,9 +632,9 @@ render_units() {
     done
 
     # Dry-run the generator: surfaces unit syntax errors immediately.
-    "$QUADLET_BIN" -dryrun -user >/dev/null 2>"$RUN_DIR/quadlet.err" \
+    QUADLET_UNIT_DIRS="$QUADLET_DIR" "$QUADLET_BIN" -dryrun -user >/dev/null 2>"$RUN_DIR/quadlet.err" \
         || { cat "$RUN_DIR/quadlet.err" >&2; die "Quadlet could not generate the units (see above)."; }
-    sctl daemon-reload
+    [ -n "${NEXTCLOUD_NO_RELOAD:-}" ] || sctl daemon-reload
     ok "systemd user units installed in $QUADLET_DIR"
 }
 
@@ -604,6 +647,20 @@ cmd_install() {
     render_units
     write_env_files
     ensure_linger
+}
+
+# Hash of everything the running services were configured from (rendered units
+# and per-service env files). If it differs from the hash recorded when the
+# services were last started, the configuration changed but was not applied.
+config_fingerprint() {
+    { cat "$QUADLET_DIR"/nextcloud*.container "$QUADLET_DIR"/nextcloud*.network "$RUN_DIR"/*.env 2>/dev/null || true; } \
+        | sha256sum | cut -d' ' -f1
+}
+mark_applied() { config_fingerprint > "$RUN_DIR/.applied"; }
+warn_if_drift() {
+    if stack_running && [ -f "$RUN_DIR/.applied" ] && [ "$(config_fingerprint)" != "$(cat "$RUN_DIR/.applied")" ]; then
+        warn "the configuration changed since the services were started; run ./setup.sh restart to apply it."
+    fi
 }
 
 stack_running() {
@@ -1004,10 +1061,13 @@ cmd_up() {
     legacy_cleanup
     ensure_ownership
 
+    warn_if_drift
     step "Starting the services (systemctl --user)"
     start_stack
+    mark_applied
 
     wait_for_web
+    scrub_install_secrets
     print_access_info
 }
 
@@ -1030,6 +1090,7 @@ cmd_restart() {
     legacy_cleanup
     ensure_ownership
     start_stack
+    mark_applied
     wait_for_web
     print_access_info
 }
@@ -1072,6 +1133,8 @@ cmd_status() {
         fi
     done
 
+    host_advice
+
     step "Health"
     local port https_port
     port="$(env_or NEXTCLOUD_PORT "$DEFAULT_HTTP_PORT")"
@@ -1086,6 +1149,18 @@ cmd_status() {
     else
         warn "Nextcloud did not answer correctly on https port ${https_port}"
     fi
+}
+
+# Optional host tuning that needs root; informational only.
+host_advice() {
+    local oc rmem
+    oc="$(cat /proc/sys/vm/overcommit_memory 2>/dev/null || echo '?')"
+    rmem="$(cat /proc/sys/net/core/rmem_max 2>/dev/null || echo 0)"
+    [ "$oc" = "1" ] && [ "${rmem:-0}" -ge 7340032 ] 2>/dev/null && return 0
+    step "Host tuning (optional, needs root)"
+    [ "$oc" = "1" ] || printf '  vm.overcommit_memory=%s (Redis prefers 1):  sudo sysctl vm.overcommit_memory=1\n' "$oc"
+    [ "${rmem:-0}" -ge 7340032 ] 2>/dev/null || printf '  net.core.rmem_max=%s (HTTP/3 wants >=7340032):  sudo sysctl net.core.rmem_max=7500000\n' "$rmem"
+    return 0
 }
 
 cmd_logs() {
@@ -1121,6 +1196,12 @@ cmd_creds() {
 
 cmd_backup() {
     require_cmd podman
+    local quiesce=0
+    case "${1:-}" in
+        --quiesce) quiesce=1 ;;
+        "") ;;
+        *) die "unknown option '$1' (expected: --quiesce)" ;;
+    esac
     local stamp dir dbname archive
     archive="data"
     stamp="$(date +%Y%m%d-%H%M%S)"
@@ -1131,7 +1212,33 @@ cmd_backup() {
     # A failed backup must not leave a half-written directory that a later
     # `restore` would pick as "newest".
     PARTIAL_BACKUP="$dir"
-    trap 'if [ -n "${PARTIAL_BACKUP:-}" ]; then rm -rf -- "$PARTIAL_BACKUP"; fi' EXIT
+    BACKUP_MAINTENANCE=0
+    # On any exit: leave maintenance mode if we entered it, drop a partial backup.
+    trap 'if [ "${BACKUP_MAINTENANCE:-0}" = 1 ]; then cmd_occ maintenance:mode --off >/dev/null 2>&1 || true; fi
+          if [ -n "${PARTIAL_BACKUP:-}" ]; then rm -rf -- "$PARTIAL_BACKUP"; fi' EXIT
+
+    # config.php FIRST, before maintenance mode: Nextcloud stores its maintenance
+    # flag in config.php, so an archive taken afterwards would restore an instance
+    # that is stuck in maintenance mode. It holds only static identity, so it has
+    # no consistency requirement with the live data.
+    step "Archiving config.php"
+    # config.php holds the instanceid, secret and passwordsalt. Without it a
+    # restored database is an orphan: the instance id would no longer match and
+    # Nextcloud would refuse to log anyone in. It is tiny, so back it up too.
+    # It lives inside the html volume, so grab just that one directory.
+    podman run --rm --userns=keep-id \
+        -v "${VOL_HTML}:/source:ro" \
+        -v "$dir:/backup:Z" \
+        "$(image_of helper)" \
+        tar czf /backup/config.tar.gz -C /source config
+    ok "config.tar.gz ($(du -h "$dir/config.tar.gz" | cut -f1))"
+
+    if [ "$quiesce" = 1 ]; then
+        step "Entering maintenance mode (database and files are captured in the same state)"
+        cmd_occ maintenance:mode --on >/dev/null
+        BACKUP_MAINTENANCE=1
+        ok "maintenance mode on"
+    fi
 
     step "Dumping the database"
     # --single-transaction gives a consistent snapshot without locking the
@@ -1160,23 +1267,16 @@ cmd_backup() {
         ok "data.tar.gz ($(du -h "$dir/data.tar.gz" | cut -f1))"
     fi
 
-    step "Archiving config.php"
-    # config.php holds the instanceid, secret and passwordsalt. Without it a
-    # restored database is an orphan: the instance id would no longer match and
-    # Nextcloud would refuse to log anyone in. It is tiny, so back it up too.
-    # It lives inside the html volume, so grab just that one directory.
-    podman run --rm --userns=keep-id \
-        -v "${VOL_HTML}:/source:ro" \
-        -v "$dir:/backup:Z" \
-        "$(image_of helper)" \
-        tar czf /backup/config.tar.gz -C /source config
-    ok "config.tar.gz ($(du -h "$dir/config.tar.gz" | cut -f1))"
-
     step "Copying configuration"
     cp -- "$ENV_FILE" "$dir/env.backup"
     cp -a -- "$UNIT_SRC_DIR" "$dir/systemd.backup"
     chmod 0600 "$dir/env.backup"
 
+    if [ "$BACKUP_MAINTENANCE" = 1 ]; then
+        cmd_occ maintenance:mode --off >/dev/null
+        BACKUP_MAINTENANCE=0
+        ok "maintenance mode off"
+    fi
     PARTIAL_BACKUP=""
     trap - EXIT
 
@@ -1358,6 +1458,14 @@ cmd_restore() {
     step "Starting the web services again"
     start_stack
     wait_for_web
+    scrub_install_secrets
+
+    # A restored instance must be usable: if the backup carried the maintenance
+    # flag (e.g. it was taken while the source was in maintenance mode), clear it.
+    if cmd_occ maintenance:mode 2>/dev/null | grep -qi 'enabled'; then
+        warn "the restored configuration had maintenance mode enabled; switching it off"
+        cmd_occ maintenance:mode --off >/dev/null
+    fi
 
     step "Verifying the restored instance"
     local instanceid users
@@ -1371,6 +1479,25 @@ cmd_restore() {
     cmd_creds
     printf '\n'
     print_access_info
+}
+
+# Stop the services and remove the rendered units and generated env files.
+# Volumes, the data directory, tls/ and .env are KEPT: `./setup.sh up` brings
+# the same instance back.
+cmd_uninstall() {
+    require_systemd
+    step "Stopping the services and removing the systemd units"
+    stop_stack
+    remove_containers
+    sctl stop nextcloud-network.service 2>/dev/null || true
+    local f
+    for f in "$QUADLET_DIR"/nextcloud*.container "$QUADLET_DIR"/nextcloud*.network; do
+        [ -e "$f" ] && rm -f -- "$f" && ok "removed $(basename "$f")"
+    done
+    rm -rf -- "$RUN_DIR"
+    [ -n "${NEXTCLOUD_NO_RELOAD:-}" ] || sctl daemon-reload
+    sctl reset-failed 2>/dev/null || true
+    ok "uninstalled (volumes, data, .env and tls/ are kept; ./setup.sh up reinstalls)"
 }
 
 cmd_destroy() {
@@ -1420,12 +1547,17 @@ main() {
         logs)              cmd_logs "$@" ;;
         occ)               cmd_occ "$@" ;;
         creds|password)    cmd_creds ;;
-        backup)            cmd_backup ;;
+        backup)            cmd_backup "$@" ;;
         restore)           cmd_restore "$@" ;;
         destroy)           cmd_destroy ;;
+        uninstall)         cmd_uninstall ;;
         help|-h|--help)    cmd_help ;;
         *)                 die "unknown command '$command'. Run: ./setup.sh help" ;;
     esac
 }
 
-main "$@"
+# Run only when executed, not when sourced (tests source this file to unit-test
+# its functions).
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi

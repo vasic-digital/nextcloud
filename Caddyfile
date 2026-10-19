@@ -16,6 +16,12 @@
 	# zstd/br/gzip (Brotli comes from the image built from docker/caddy).
 	encode zstd br gzip
 
+	# CalDAV/CardDAV discovery. Apache's own .htaccess would answer with an
+	# ABSOLUTE redirect built from its plain-HTTP scheme (http://host:443/...),
+	# downgrading iOS/DAVx5 clients; a relative redirect keeps the https scheme.
+	redir /.well-known/carddav /remote.php/dav/ 301
+	redir /.well-known/caldav /remote.php/dav/ 301
+
 	# Caddy sets X-Forwarded-For/-Proto/-Host itself. Nextcloud honours them
 	# because the proxy's address is listed in TRUSTED_PROXIES (set in .run/app.env by setup.sh).
 	# The upstream comes from the environment (.run/caddy.env, written by setup.sh).

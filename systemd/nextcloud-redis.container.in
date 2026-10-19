@@ -11,7 +11,7 @@ NetworkAlias=redis
 # The image's service account (@REDIS_RUN_USER@, @REDIS_UID@:@REDIS_GID@) is discovered by
 # setup.sh and mapped onto the invoking user.
 UserNS=keep-id:uid=@REDIS_UID@,gid=@REDIS_GID@
-Volume=nextcloud-redis:/data
+Volume=@VOL_REDIS@:/data
 # Persist at most once a minute: the cache is disposable, so AOF stays off.
 Exec=redis-server --save 60 1 --loglevel warning
 HealthCmd=redis-cli ping

@@ -26,9 +26,18 @@ StopSignal=SIGTERM
 Network=nextcloud.network
 UserNS=keep-id:uid=@APP_UID@,gid=@APP_GID@
 User=root
-EnvironmentFile=@PROJECT_DIR@/.run/cron.env
-Volume=nextcloud-html:/var/www/html
+EnvironmentFile=@RUN_DIR@/cron.env
+Volume=@VOL_HTML@:/var/www/html
 Volume=@DATA_HOST_PATH@:/var/www/html/data
+# Healthy while a crond process exists (it silently does nothing otherwise).
+# '[c]rond' matches "crond" but not this command's own text, which also appears in
+# its /proc/<pid>/cmdline (a plain 'crond' pattern would find the check itself and
+# could never fail).
+HealthCmd=sh -c 'for p in /proc/[0-9]*; do grep -qs "[c]rond" "$p/cmdline" && exit 0; done; exit 1'
+HealthInterval=60s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=20s
 
 [Service]
 # busybox crond exits via the signal itself (143) when asked to stop; that is a

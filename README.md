@@ -37,6 +37,12 @@ $ ./setup.sh
   Credentials file  /run/media/milosvasic/DATA4TB/Projects/nextcloud/.env
 ```
 
+> **Testing and evidence.** This repository ships a live test suite
+> (`tests/run-all.sh`) that exercises the real units, containers, certificates and
+> Nextcloud API and writes a checksummed evidence package. Documentation claims in
+> this README are checked against the code by `tests/t11-docs.sh`. Start with
+> [Testing and evidence](#testing-and-evidence) and [tests/README.md](tests/README.md).
+
 ---
 
 ## Table of contents
@@ -48,6 +54,7 @@ $ ./setup.sh
 - [Accessing the instance](#accessing-the-instance)
 - [Repository layout](#repository-layout)
 - [Configuration reference (`.env`)](#configuration-reference-env)
+  - [Developer knobs](#developer-knobs)
 - [How the pieces fit together](#how-the-pieces-fit-together)
   - [The five services](#the-five-services)
   - [Volumes: what lives where](#volumes-what-lives-where)
@@ -61,15 +68,17 @@ $ ./setup.sh
 - [Upgrading](#upgrading)
 - [Troubleshooting](#troubleshooting)
 - [Security posture](#security-posture)
+- [Host tuning (optional)](#host-tuning-optional)
 - [VPNs and container networking](#vpns-and-container-networking)
 - [Cleanup: leftovers from earlier attempts](#cleanup-leftovers-from-earlier-attempts)
 - [Uninstall](#uninstall)
+- [FAQ](#faq)
 - [Design decisions and why](#design-decisions-and-why)
+- [Verified state](#verified-state)
 - [Reverse proxy (Caddy)](#reverse-proxy-caddy)
 - [Running under systemd (`--user`)](#running-under-systemd---user)
 - [File ownership and SMB access](#file-ownership-and-smb-access)
-- [Testing](#testing)
-- [Verified state](#verified-state)
+- [Testing and evidence](#testing-and-evidence)
 
 ---
 
@@ -98,50 +107,71 @@ $ ./setup.sh
 - **Idempotent.** Running `./setup.sh up` twice does not create a second stack,
   and never regenerates secrets that already exist.
 - **Backup and restore are first-class**, not a README recipe: `./setup.sh
-  backup` and `./setup.sh restore`.
+  backup` (optionally `--quiesce`) and `./setup.sh restore`.
+- **Reversible.** `./setup.sh uninstall` removes the systemd units and generated
+  files but keeps your volumes, data, `.env` and certificate; `destroy` removes the
+  volumes. See [Uninstall](#uninstall).
+- **Your files stay yours.** Every service runs through `UserNS=keep-id`, so what
+  the stack writes is owned by your login user and a Samba share on the data
+  directory stays writable. See [File ownership and SMB access](#file-ownership-and-smb-access).
+- **Tested.** A live suite with a checksummed evidence package; see
+  [Testing and evidence](#testing-and-evidence).
 
 ---
 
 ## Architecture
 
-```
-                        your LAN (192.168.1.0/24)
-                                 │
-                 http://host:8080│        https://host:52443
-                                 ▼
-              ┌──────────────────────────────────────┐
-              │  host  (rootless Podman, Quadlet /   │
-              │         systemctl --user)            │
-              │                                      │
-              │   nextcloud-net  (private bridge)    │
-              │  ┌────────────────────────────────┐  │
-  52443/tcp+  │  │                                │  │
-  udp ────────┼──┤  nextcloud-caddy (TLS, HTTP/3) │  │
-              │  │      │ proxies to app:80       │  │
-  8080/tcp ───┼──┤  nextcloud-app   (apache/php)  │  │
-  published   │  │      │                         │  │
-              │  │      ├── nextcloud-db    3306  │  │  ← not published
-              │  │      └── nextcloud-redis 6379  │  │  ← not published
-              │  │                                │  │
-              │  │  nextcloud-cron  (crond →      │  │
-              │  │                   cron.php)    │  │
-              │  └────────────────────────────────┘  │
-              │                                      │
-              │  volumes:                            │
-              │    nextcloud-html       /var/www/html│
-              │    nextcloud-db         /var/lib/mysql│
-              │    nextcloud-redis      /data        │
-              │    nextcloud-caddy-data /data (caddy)│
-              │  bind mount:                         │
-              │    DATA_HOST_PATH → .../html/data    │
-              └──────────────────────────────────────┘
+```text
+                        your LAN (for example 192.168.1.0/24)
+                                      │
+        http://host:8080              │             https://host:52443
+        plain HTTP (tcp)              │             tcp: HTTP/1.1 + HTTP/2, udp: HTTP/3
+                                      ▼
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ host: rootless Podman; five `systemctl --user` Quadlet units (+ the network        │
+│ unit), started at boot through lingering                                           │
+│                                                                                    │
+│   nextcloud-net  (private bridge; nextcloud-network.service)                       │
+│   ┌──────────────────────────────────────────────────────────────────────────────┐ │
+│   │ caddy  :443  TLS from tls/site.crt, br/zstd/gzip, /.well-known redirects     │ │
+│   │    └── reverse_proxy ──►  app :80  (Apache + PHP, healthcheck)               │ │
+│   │                             ├── db    :3306  MariaDB                         │ │
+│   │                             └── redis :6379  cache, locks, sessions          │ │
+│   │ cron   crond (container-root = a host sub-uid, under an init) -> cron.php    │ │
+│   └──────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                    │
+│ published:     app 80 -> NEXTCLOUD_PORT; caddy 443 tcp+udp -> HTTPS port           │
+│ not published: db, redis, cron                                                     │
+│ volumes:       nextcloud-html       /var/www/html   (program files, config)        │
+│                nextcloud-db         /var/lib/mysql                                 │
+│                nextcloud-redis      /data                                          │
+│                nextcloud-caddy-data /data (in caddy)                               │
+│ bind mount:    DATA_HOST_PATH -> /var/www/html/data  (user files, SMB-shared)      │
+│ from the repo: Caddyfile, tls/ and config/nextcloud-hooks (read-only),             │
+│                .run/*.env (one per service, mode 0600)                             │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Request path: browser → host port 8080 (HTTP, straight to `app:80`) or 52443
 (HTTPS, to `caddy:443` and on to `app:80`) → PHP reads/writes the data directory
-(`DATA_HOST_PATH`), caches and locks in `nextcloud-redis`, and stores metadata in
-`nextcloud-db`. The `cron` container shares `nextcloud-html` and the data
-directory with `app` and runs maintenance independently of web traffic.
+(`DATA_HOST_PATH`), caches and locks in `redis`, and stores metadata in `db`. The
+`cron` container shares `nextcloud-html` and the data directory with `app` and runs
+maintenance independently of web traffic.
+
+The units and what they run as:
+
+| Unit | Container | Image | Runs as (on the host) | Published |
+| --- | --- | --- | --- | --- |
+| `nextcloud-network.service` | *(the `nextcloud-net` bridge)* | — | — | — |
+| `nextcloud-db.service` | `nextcloud-db` | `mariadb:11` | you (`mysql` mapped by `keep-id`) | no |
+| `nextcloud-redis.service` | `nextcloud-redis` | `redis:7-alpine` | you (`redis` mapped by `keep-id`) | no |
+| `nextcloud-app.service` | `nextcloud-app` | `nextcloud:35-apache` | you (`www-data` mapped by `keep-id`) | `NEXTCLOUD_PORT` → 80 |
+| `nextcloud-cron.service` | `nextcloud-cron` | same image as `app` | `crond` as container-root, a host **sub-uid**, under an init; its jobs run as you | no |
+| `nextcloud-caddy.service` | `nextcloud-caddy` | `localhost/nextcloud-caddy-brotli:2` | container-root, which maps to you | `NEXTCLOUD_HTTPS_PORT` → 443 tcp+udp |
+
+`db`, `redis` and `app` are fully unprivileged. The one process that is not the
+login user is cron's `crond` supervisor, which writes nothing; see
+[File ownership and SMB access](#file-ownership-and-smb-access).
 
 ---
 
@@ -153,12 +183,14 @@ directory with `app` and runs maintenance independently of web traffic.
 | `systemd --user` + Quadlet | The Quadlet generator (`/usr/libexec/podman/quadlet`). `systemctl` and `loginctl` must work for your user. Lingering (`loginctl enable-linger`) is enabled by `setup.sh` so the services start at boot. |
 | `openssl` | **Required** on every `up`/`restart`/`restore`: generates and checks the self-signed TLS certificate. (Also generates the initial secrets, with `od` as fallback.) |
 | `curl` | Used by `status` for the HTTPS probe; the HTTP readiness probe falls back to a Bash `/dev/tcp` request. |
-| `smbclient` *(optional)* | Only for `tests/smb-live-test.sh`. |
+| `python3` | Required by the test runner (`tests/run-all.sh`) for the report. |
+| `ss` *(optional)* | Used by the port preflight to say which process holds a port. |
+| `smbclient` *(optional)* | Only for `tests/smb-live-test.sh` and `tests/t05-smb.sh`. |
 | Internet on first run | Pulls the images and builds `localhost/nextcloud-caddy-brotli:2` once (xcaddy, needs docker.io and github.com). Afterwards everything is local. |
-| ~5 GB free disk | Images are ~1.9 GB; the rest is for user data and the database. |
+| ~5 GB free disk | Images were about 1.9 GB when measured on 2026-10-19; the rest is for user data and the database. |
 | Free ports | `8080/tcp` (`NEXTCLOUD_PORT`) and `52443/tcp+udp` (`NEXTCLOUD_HTTPS_PORT`). `setup.sh` fails early with a clear message if one is taken. |
 
-No `sudo` is required anywhere. Everything runs as your user.
+No `sudo` is required to install or run the stack; everything is a user service of your own account. The only things that need root are optional host-tuning sysctls (see [Host tuning](#host-tuning-optional)).
 
 ---
 
@@ -178,11 +210,13 @@ No `sudo` is required anywhere. Everything runs as your user.
 ./setup.sh creds
 ```
 
-That is the whole installation. Once the images are present and the Caddy image
-is built, the first start takes roughly 25 seconds (Nextcloud's own installer
-runs, the database schema is created, the hook applies the extra configuration);
-a cold machine also pays for the image pulls and the one-off Caddy build.
-Subsequent starts take a few seconds.
+That is the whole installation. With the images present and the Caddy image
+built, the first start took about 25 seconds on the reference host (measured
+2026-10-19: Nextcloud's own installer runs, the database schema is created, the hook
+applies the extra configuration); a cold machine also pays for the image pulls and
+the one-off Caddy build, and `STARTUP_TIMEOUT` (default 600 s) bounds the wait.
+Subsequent starts are much quicker. `./setup.sh install` renders the units and
+env files without starting anything; `./setup.sh status` shows what is running.
 
 ---
 
@@ -217,14 +251,23 @@ store (or accept the self-signed certificate once).
 
 ## Repository layout
 
-```
+```text
 .
 ├── systemd/                         # Quadlet unit templates (*.in) — rendered by setup.sh
+│   ├── nextcloud-{db,redis,app,cron,caddy}.container.in
+│   └── nextcloud.network.in
 ├── docker/caddy/Containerfile       # Caddy + Brotli, built once by setup.sh
-├── Caddyfile                        # TLS terminator config
-├── tests/smb-live-test.sh           # live SMB add/modify/remove test
+├── Caddyfile                        # TLS terminator config (global block + :443 site block)
+├── tests/                           # live test suite and its evidence tooling
+│   ├── README.md                    # how to run it, what each module proves
+│   ├── run-all.sh                   # runner: modules, evidence, MANIFEST.sha256
+│   ├── lib.sh, report.py            # shared library; report generator
+│   ├── t01-static.sh … t11-docs.sh  # the test modules
+│   ├── smb-live-test.sh             # live SMB add/modify/remove test
+│   ├── publish-evidence.sh          # copy a passing run to docs/evidence/
+│   └── evidence/                    # generated runs; git-ignored
 ├── tls/                             # generated self-signed site.crt + site.key; git-ignored
-├── .run/                            # generated per-service env files (secrets); git-ignored
+├── .run/                            # generated per-service env files (secrets, 0600); git-ignored
 ├── setup.sh                         # launcher + backup + restore + diagnostics
 ├── .env.example                     # documented template, safe to commit
 ├── .env                             # generated; secrets; mode 0600; git-ignored
@@ -238,7 +281,7 @@ store (or accept the self-signed certificate once).
 │       ├── database.sql.gz          # consistent dump (--single-transaction)
 │       ├── data.tar.gz              # user files
 │       ├── config.tar.gz            # config/ — holds config.php + instanceid
-│       ├── env.backup               # the .env that matches this dump
+│       ├── env.backup               # the .env that matches this dump (secrets!)
 │       └── systemd.backup/
 └── config/
     └── nextcloud-hooks/
@@ -249,6 +292,10 @@ store (or accept the self-signed certificate once).
         ├── pre-upgrade/
         └── post-upgrade/
 ```
+
+Rendered units live outside the repository, in
+`~/.config/containers/systemd/` (`$XDG_CONFIG_HOME/containers/systemd/`); the
+per-service env files live in `.run/`.
 
 The `config/nextcloud-hooks` tree is mounted read-only at
 `/docker-entrypoint-hooks.d` inside the app container. **All five subdirectories
@@ -294,6 +341,12 @@ Edit it freely and run `./setup.sh restart` to apply changes.
 | `NEXTCLOUD_ADMIN_PASSWORD` | generated | Same — first install only; the placeholder `change-me` is refused. Change it later with `./setup.sh occ user:resetpassword admin`. |
 | `DEFAULT_PHONE_REGION` | *(empty)* | ISO 3166-1 alpha-2 code (e.g. `RS`) used to interpret phone numbers typed without a country prefix. Setting it stops Nextcloud warning on every profile save. |
 
+### Scheduling
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `NEXTCLOUD_MAINTENANCE_WINDOW_START` | `1` | Hour of the day (0-23, **UTC**) at which Nextcloud runs its heavy nightly maintenance jobs. Passed to `app` and applied by the hook as `maintenance_window_start`. Default `1`, i.e. 01:00 UTC rather than on the hour in the evening. |
+
 ### PHP and Apache
 
 | Variable | Default | Meaning |
@@ -310,11 +363,38 @@ Edit it freely and run `./setup.sh restart` to apply changes.
 | `NEXTCLOUD_IMAGE`, `DB_IMAGE`, `REDIS_IMAGE`, `CADDY_IMAGE` | *(empty = built-in default)* | Image overrides. `app` and `cron` always share `NEXTCLOUD_IMAGE`. `CADDY_IMAGE` is a local tag built from `docker/caddy` and never pulled. |
 | `HELPER_IMAGE` | `docker.io/library/alpine:3` | Throwaway image used by `backup`/`restore` for tar and wipe helpers. |
 | `APP_RUN_USER`, `APP_UID`, `APP_GID` (same for `DB_` and `REDIS_`) | *(empty = read from the image)* | Override the service account name or numeric ids that `keep-id` maps onto your user. `APP_RUN_USER` is also the account `occ` runs as (default `www-data`). |
-| `SMB_TEST_USER`, `SMB_TEST_PASSWORD`, `SMB_TEST_SHARE`, `SMB_TEST_HOST`, `NC_TEST_USER` | *(empty)* | Only for `tests/smb-live-test.sh`. |
+| `SMB_TEST_USER`, `SMB_TEST_PASSWORD` | *(empty)* | The host account Samba authenticates, for `tests/smb-live-test.sh` and `tests/t05-smb.sh`. Never committed; redacted from test evidence. Without them the SMB test is skipped. |
+| `SMB_TEST_SHARE` | `Nextcloud` | Name of the Samba share that exports `DATA_HOST_PATH`. |
+| `SMB_TEST_HOST` | *(empty = the LAN IP)* | SMB server to test against. |
+| `NC_TEST_USER` | *(empty = `NEXTCLOUD_ADMIN_USER`)* | Nextcloud user whose files directory the SMB test uses. |
 
 `STARTUP_TIMEOUT` (seconds `up`/`restart`/`restore` wait for the web UI, default
 `600`) is read from the **shell environment**, not from `.env`:
 `STARTUP_TIMEOUT=900 ./setup.sh up`.
+
+Everything the stack needs is derived, not configured: the host user comes from
+`id`, each service account's uid/gid from its image, the proxy subnet from the Podman
+network, and the LAN address and timezone from the system. See
+[Running under systemd](#running-under-systemd---user).
+
+### Developer knobs
+
+These environment variables are read by `setup.sh` itself (not from `.env`). They
+exist so tests and maintainers can render and inspect the units in throw-away
+directories without touching the live stack.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `NEXTCLOUD_ENV_FILE` | `.env` | Configuration file to read instead of `.env`. |
+| `NEXTCLOUD_RUN_DIR` | `.run` | Directory for the generated per-service env files (created mode `0700`). |
+| `NEXTCLOUD_QUADLET_DIR` | `$XDG_CONFIG_HOME/containers/systemd` (else `~/.config/containers/systemd`) | Directory the unit templates are rendered into. |
+| `NEXTCLOUD_NO_RELOAD` | *(unset)* | When non-empty, `render_units` and `uninstall` do not run `systemctl --user daemon-reload`. |
+| `NO_COLOR` | *(unset)* | When set, output has no colour. |
+
+`setup.sh` is **sourceable**: it only defines functions when sourced and runs
+`main` only when executed, so tests can call a single function, for example
+`NEXTCLOUD_ENV_FILE=/tmp/x.env bash -c 'source ./setup.sh; image_of nextcloud'`.
+The constants are read once at source time, so set the variables before sourcing.
 
 > **Changing the administrator password in `.env` after the first start has no
 > effect.** It is read once, by the installer, on the first install.
@@ -335,7 +415,11 @@ for HTTP/3), Brotli/zstd/gzip, proxying to `nextcloud-app:80`. See
 unit `Requires=` and orders itself `After=` `db` and `redis`, and those two use
 `Notify=healthy`, so systemd does not even start `app` until MariaDB reports
 `--innodb_initialized` and Redis answers `PING`. This is why the stack comes up
-cleanly instead of racing its own database.
+cleanly instead of racing its own database. **Every** service has a healthcheck and shows `healthy` in `podman ps`: `app` runs
+`curl -fsS http://localhost/status.php` (every 30 s, 300 s start period for the first
+install); `caddy` asks Caddy's own admin API (inside the container, port 2019), so it
+is independent of the app; `cron` looks for a live `crond` process. `cron` `Requires=` `app`;
+`caddy` only `Wants=` it, so a web restart does not stop TLS.
 
 **`db`** — MariaDB 11 with the three settings Nextcloud's own documentation
 recommends: `--transaction-isolation=READ-COMMITTED`, `--binlog-format=ROW`, and
@@ -435,7 +519,7 @@ equals running it once) and it sets only what the image does not already handle:
 | Setting | Why |
 | --- | --- |
 | `background:cron` | Tell Nextcloud to stop firing background jobs during page loads, since the `cron` service does that properly. (Stored as app config `core/backgroundjobs_mode`.) |
-| `maintenance_window_start=1` | Run heavy maintenance at 01:00 instead of on the hour, so nightly jobs do not compete with evening uploads. |
+| `maintenance_window_start` | Value of `NEXTCLOUD_MAINTENANCE_WINDOW_START` (default `1`, a UTC hour): run heavy maintenance then, so nightly jobs do not compete with evening uploads. |
 | `filesystem_check_changes=1` | The data directory is shared with the host (SMB), so folders are re-checked against the filesystem on every listing and external changes show up immediately instead of after `occ files:scan`. |
 | `overwrite.cli.url` | Correct base URL in links generated outside a web request. Set only if `NEXTCLOUD_OVERWRITE_CLI_URL` is non-empty. |
 | `default_phone_region` | Only if `DEFAULT_PHONE_REGION` is non-empty. |
@@ -474,20 +558,22 @@ and then runs `cron.php` every five minutes. Confirm the mode with:
 
 | Command | What it does |
 | --- | --- |
-| `up` *(default)* | Create `.env` if missing, run preflight checks (including the TLS certificate), build the Caddy image if absent, render and install the systemd user units, remove leftover non-Quadlet containers, migrate file ownership if needed, start the services, wait for the web UI to report itself installed, print access URLs. Refuses placeholder secrets (`change-me`) and a relative `DATA_HOST_PATH`. |
-| `install` | Only (re)generate the units and env files (also creates `.env`, builds the Caddy image, enables lingering); start nothing. |
+| `up` *(default)* | Create `.env` if missing, run preflight checks (including the TLS certificate), build the Caddy image if absent, render and install the systemd user units, remove leftover non-Quadlet containers, migrate file ownership if needed, start the services, wait for the web UI to report itself installed, print access URLs. Refuses placeholder secrets (`change-me`), a relative `DATA_HOST_PATH` and, on a fresh install, a non-empty data directory. Prints a **drift warning** if the configuration changed since the services were started. After the first install it removes the administrator credentials from the app environment (one extra restart of `app`). |
+| `install` | Only (re)generate the units and env files (also creates `.env`, the data directory and the certificate, builds the Caddy image, enables lingering); start nothing. |
 | `down` | Stop the services. **Volumes and data are kept.** |
-| `restart` | Re-render the units and restart. Use after editing `.env` or `systemd/*.in`. |
-| `status` | Unit state (and restart counts), containers, volumes, **ownership audit**, and live HTTP/HTTPS health probes. |
+| `restart` | Re-render the units and env files and restart everything. This is what applies a drift warning; use it after editing `.env` or `systemd/*.in`. |
+| `status` | Unit state (active/enabled, restart counts) and linger, containers, volumes, an **ownership audit** (data directory and the four volumes), optional **host-tuning advice** (`vm.overcommit_memory`, `net.core.rmem_max`; applying needs root) and live HTTP/HTTPS probes. |
 | `logs [svc]` | Follow logs — all services (`journalctl --user`), or one of `app`, `db`, `redis`, `cron`, `caddy` (`podman logs -f`). |
 | `occ ...` | Run an `occ` command inside the running app container as the app's web account (`APP_RUN_USER`, default `www-data`). stdin/TTY is allocated when run interactively, so prompts such as `user:add` work. |
-| `creds` | Print the generated administrator user and password. |
-| `backup` | Write a database dump plus data and config archives. Not quiesced (see [Backups](#backups)). A failed backup removes its partial directory. |
-| `restore [d]` | Replace the current instance with a backup (newest **complete** one by default, or a timestamp / directory). Validates the archives first and asks for confirmation. |
-| `destroy` | Remove containers, the four named volumes and the network, then verify they are gone. **Never deletes the host data directory.** Asks for confirmation. |
-| `help` | Print the usage block. |
+| `creds` | Print the generated administrator user and password (read from `.env`). |
+| `backup [--quiesce]` | Write a database dump plus data and config archives under `backups/<timestamp>/`. With `--quiesce`, Nextcloud is in maintenance mode while the dump and data archive are taken (`config.php` is archived first), so database and files are captured in the same state; maintenance mode is always switched off again, also when the backup fails. A failed backup removes its partial directory. See [Backups](#backups). |
+| `restore [d]` | Replace the current instance with a backup (newest **complete** one by default, or a timestamp / directory). Validates all archives first, asks you to type `RESTORE`, then rebuilds the instance. See [Restoring a backup](#restoring-a-backup). |
+| `uninstall` | Stop the services and remove the rendered units and `.run/`. **Keeps the volumes, the data directory, `.env` and `tls/`**; `./setup.sh up` brings the same instance back. See [Uninstall](#uninstall). |
+| `destroy` | Remove containers, the four named volumes and the network, then verify they are gone. **Never deletes the host data directory.** Asks you to type `DELETE`. |
+| `help` | Print the usage block (the header comment of `setup.sh`). |
 
 Aliases: `start` = `up`, `stop` = `down`, `ps` = `status`, `password` = `creds`.
+`-h` and `--help` also print the usage.
 
 **Preflight checks** run before anything is created and will stop you early if
 something is wrong:
@@ -498,7 +584,11 @@ something is wrong:
 - Neither port is already held by another process — unless it is held by *our*
   stack, in which case that is fine.
 - Secrets are not the `change-me` placeholder; `DATA_HOST_PATH` is absolute.
-- The data directory exists (it is created) and is writable by you.
+- The data directory exists (it is created) and is writable by you. If no
+  Nextcloud instance exists yet (no `nextcloud-html` volume), the directory must be
+  **empty**: the installer refuses to create the administrator while that user's
+  folder already exists. The check fails immediately with a message that points at
+  `./setup.sh restore` or at emptying/moving the directory.
 - All five hook subdirectories exist and the tuning script is executable.
 - `backups/` exists.
 - The self-TLS certificate in `tls/` exists and covers every current name/IP
@@ -512,6 +602,13 @@ clean timeout it prints 40 lines. You never get "it hung and I don't know why".
 exactly `nextcloud-db`, `-redis`, `-app`, `-cron` or `-caddy` (for instance from an
 old podman-compose setup; `podman rm -f --depend`), because they would collide with
 the units' names and ports. Volumes and data are untouched.
+
+**Drift warning.** `up` records a SHA-256 of the rendered units and the per-service
+env files in `.run/.applied` each time it starts the services. If that hash no
+longer matches (you edited `.env` or a template and re-ran `up`), it prints
+`the configuration changed since the services were started; run ./setup.sh restart to apply it.`
+and does not apply the change silently. `restart` re-renders, restarts and records the
+new hash.
 
 Health probe detail: the probe asks `http://<bind>:<port>/status.php` (`<bind>` is
 `NEXTCLOUD_BIND`, or `127.0.0.1` when that is `0.0.0.0`) and requires
@@ -547,17 +644,18 @@ podman exec nextcloud-redis redis-cli info stats | head
 ## Backups
 
 ```bash
-./setup.sh backup
+./setup.sh backup              # live backup
+./setup.sh backup --quiesce    # maintenance mode on during the backup
 ```
 
-Writes `backups/<YYYYmmdd-HHMMSS>/` containing:
+Writes `backups/<YYYYmmdd-HHMMSS>/` (mode `0700`) containing:
 
 | File | What it is | Why it is needed |
 | --- | --- | --- |
 | `database.sql.gz` | `mariadb-dump --single-transaction --quick --routines --events` | Metadata. `--single-transaction` gives a transaction-consistent snapshot **without locking tables**, so a running instance keeps serving requests during the dump. |
 | `data.tar.gz` | The whole data directory (`DATA_HOST_PATH`) | Irreplaceable user files. |
 | `config.tar.gz` | `config/` from the `html` volume | **Holds `config.php`.** See below. |
-| `env.backup` | A copy of `.env`, mode `0600` | The dump's tables belong to these credentials. |
+| `env.backup` | A copy of `.env`, mode `0600` | The dump's tables belong to these credentials. **It contains your secrets.** |
 | `systemd.backup/` | A copy of the unit templates | So you know what generated the data. |
 
 ### Why `config.php` is mandatory, not optional
@@ -573,10 +671,22 @@ includes `config.tar.gz` and why `restore` puts it back.
 
 ### Taking a backup safely
 
-A backup is **not quiesced**: the database dump is a transaction snapshot, and the
-data archive is taken *afterwards* from the live directory, so files changed in
-between can be newer than the dump. That is fine for an idle home instance. If you
-need exact consistency, put the instance into maintenance mode around the backup:
+A plain `backup` is **not quiesced**: the database dump is a transaction snapshot,
+and the data archive is taken *afterwards* from the live directory, so files changed
+in between can be newer than the dump. That is fine for an idle home instance. When
+you need the database and the files to describe exactly the same moment, use
+
+```bash
+./setup.sh backup --quiesce
+```
+
+It first archives `config.php`, **then** switches Nextcloud into maintenance mode
+(`occ maintenance:mode --on`), and takes the dump and the data archive. The order
+matters: Nextcloud keeps its maintenance flag inside `config.php`, so a `config.php`
+archived after maintenance mode was switched on would restore into a stuck
+maintenance mode. The command switches maintenance mode **off again on every exit
+path**, including when the backup fails or is interrupted. The web UI answers
+"maintenance" meanwhile. The same effect by hand, without the guarantee:
 
 ```bash
 ./setup.sh occ maintenance:mode --on
@@ -585,7 +695,8 @@ need exact consistency, put the instance into maintenance mode around the backup
 ```
 
 If a backup fails part-way, its partial directory is removed, so `restore` with no
-argument always picks the newest **complete** backup.
+argument always picks the newest **complete** backup (one that has all four files:
+`database.sql.gz`, `data.tar.gz`, `config.tar.gz`, `env.backup`).
 
 `backups/` is git-ignored — it contains user data and secrets, so never commit
 it. Copy it somewhere else on a schedule; `setup.sh` does not do that for you.
@@ -637,7 +748,12 @@ are replaced.
    (`--userns=keep-id`, `--no-same-owner`) — whatever owners the archive recorded,
    the files end up yours.
 7. **Restores `config/`** into the `html` volume from `config.tar.gz`.
-8. **Starts all five units again** and waits for the web UI.
+8. **Starts all five units again**, waits for the web UI and **scrubs the install
+   secrets**: the first-install administrator credentials are removed from the
+   app environment again (one extra restart of `app`), so the running container never
+   keeps the admin password (see [Security posture](#security-posture)). If the
+   restored configuration has maintenance mode switched on, `restore` switches it
+   off again (with a warning) so the instance does not come up stuck in maintenance.
 9. **Verifies** by printing the restored `instanceid` and the number of user
    accounts — a quick sanity check that you got *your* instance back, not a
    blank one.
@@ -646,6 +762,16 @@ Step 3 looks wasteful, and it is deliberate: **Podman only copies the image's
 contents into a named volume while that volume is still empty.** Restoring
 `config/` into a never-populated `html` volume would give you a container with no
 program files. So the volume has to be populated first, and then overwritten.
+
+The prompt and every refusal come **before** anything destructive. A restore is
+refused, with nothing changed, when an archive fails `gzip -t` or `tar -t`, when
+`config.tar.gz` lacks `config/config.php`, when the set is incomplete, or when you do
+not type `RESTORE`.
+
+A related guard on the other side: `./setup.sh up` on a machine with **no** Nextcloud
+instance yet (no `nextcloud-html` volume) refuses a non-empty data directory, because
+the installer would fail on it; the message points you at `restore`. That is exactly
+the state after `destroy`, which keeps your files.
 
 Restored files belong to you: the helper container runs as your user
 (`--userns=keep-id`) and ignores the archive's recorded owners, so no `chown` pass
@@ -691,12 +817,119 @@ Notes:
 - MariaDB pulls are safe too: `MARIADB_AUTO_UPGRADE=1`.
 - Always read the upstream release notes for the target major version — some
   releases drop support for older PHP extensions or database versions.
-- Wait for the maintenance window rather than fighting it: it is set to 01:00
-  local time.
+- Wait for the maintenance window rather than fighting it: heavy jobs run at the
+  UTC hour in `NEXTCLOUD_MAINTENANCE_WINDOW_START` (default `1`).
 
 ---
 
 ## Troubleshooting
+
+Each entry is symptom → cause → fix. First look at `./setup.sh status` (units,
+containers, ownership, probes) and `./setup.sh logs`. `tests/run-all.sh
+--non-destructive` pinpoints most of the problems below with a named check.
+
+### SMB write fails with `NT_STATUS_ACCESS_DENIED`
+
+**Cause:** files in the data directory belong to a sub-uid (for example `100032`), not
+to the account Samba acts as. This is what the old setup produced, and it can reappear
+if an older stack wrote into the directory.
+**Fix:** run `./setup.sh status` and look at the *Ownership* section: it lists
+entries not owned by you. Then `./setup.sh down && ./setup.sh up`; `up` migrates the
+data directory and the volumes to your user with `podman unshare chown -R` and prints
+`ownership migrated`. Make sure Samba's share points at `DATA_HOST_PATH` and that the
+authenticating account is the user the stack runs as. Verify end to end with
+`tests/smb-live-test.sh`.
+
+### Blank white page over HTTPS (empty HTTP 200)
+
+**Cause:** the `Caddyfile` lost its structure. Directives outside the `{ … }` global
+block and the `:443 { … }` site block are parsed as a *site address*, so no route
+matches and Caddy answers with an empty 200.
+**Fix:** restore the layout (global block with `auto_https off`, then the `:443`
+site block) and check what Caddy understood with `caddy adapt`, see
+[Reverse proxy](#reverse-proxy-caddy). Also confirm `tls/site.crt` and `tls/site.key`
+exist (`./setup.sh install` regenerates them) and run `./setup.sh restart`.
+
+### Port already in use
+
+**Symptom:** `up` stops during preflight with `port <N> is already in use by another
+process` followed by `free it, or set NEXTCLOUD_PORT in .env to something else.`
+**Cause:** another project or service holds `NEXTCLOUD_PORT` or `NEXTCLOUD_HTTPS_PORT`
+(note that HTTPS needs both tcp and udp). **Fix:** find the owner and either stop it
+or change the port in `.env`, then `./setup.sh up`:
+
+```bash
+ss -ltnup 'sport = :52443'      # replace with the port in the message
+```
+
+### Fresh install refused: the data directory is not empty
+
+**Symptom:** `up` prints `no Nextcloud instance exists yet, but the data directory is
+not empty`.
+**Cause:** there is no `nextcloud-html` volume (first run, or after `destroy`), but
+`DATA_HOST_PATH` already holds files; a fresh install must start from an empty
+directory (otherwise the installer fails with "Login is invalid because files already
+exist for this user").
+**Fix:** to get the old instance back, `./setup.sh restore` a backup (it empties the
+directory itself). To start from nothing, move or empty the directory, then
+`./setup.sh up`. Nothing is deleted for you.
+
+### Background jobs do not run (`cron` not running)
+
+**Symptom:** the admin page warns that the last cron job ran a long time ago.
+**Check:** `./setup.sh occ config:app:get core lastcron` (a unix timestamp that
+should be less than about six minutes old), `systemctl --user status nextcloud-cron`
+and `./setup.sh logs cron`.
+**Cause:** the `cron` unit is down, or `crond` is running as a non-root user. Busybox
+`crond` needs `setgroups()`; as non-root it logs `can't set groups` and silently never
+runs a job. **Fix:** keep `User=root` in `systemd/nextcloud-cron.container.in` (under
+`keep-id` that root is a host sub-uid that writes nothing), then `./setup.sh restart`.
+
+### A service is not healthy (`app`, `caddy`, `cron`, `db`, `redis`)
+
+All five services have healthchecks. **Check:** `podman ps` or
+`podman inspect -f '{{.State.Health.Status}}' nextcloud-<svc>` and
+`journalctl --user -u nextcloud-<svc> -n 100`. `app` has a 300 s start period, so
+`starting` during the first install is normal. `caddy` unhealthy means Caddy itself
+is not answering its admin API (check the Caddyfile with `caddy adapt`), not that the
+app is down; `cron` unhealthy means no `crond` process is alive.
+**Causes and fixes:** the database is not up yet (`nextcloud-db` must be `healthy`;
+`journalctl --user -u nextcloud-db`); an *untrusted domain* answer (see below); the
+entrypoint failed (`Permission denied` on `redis-session.ini` means the image moved
+that file, fix the mount in the unit template; do **not** add `User=root`);
+`needsDbUpgrade` after an image bump (`./setup.sh occ upgrade`).
+
+### Units are `failed` (or `up` says a unit failed to start)
+
+**Cause:** a unit crashed repeatedly and hit systemd's start limit, or was killed
+behind systemd's back. **Fix:** read the reason (`systemctl --user status
+nextcloud-<svc>`, `journalctl --user -u nextcloud-<svc>`), fix it, then
+`systemctl --user reset-failed` and `./setup.sh up`. A stopped `nextcloud-cron` is not a
+failure; `restart` and `down` handle it.
+
+### "the configuration changed since the services were started"
+
+**Cause:** you edited `.env` or a template and ran `up` (or edited files under
+`.run/`). The running containers still use the old values. **Fix:**
+`./setup.sh restart`. The warning disappears once the new hash is recorded.
+
+### `restore` refuses to start
+
+**Messages and meanings:** `<archive> is corrupt` / `is not a readable archive` (the
+file is damaged, use another backup); `does not contain config/config.php` (an
+old or hand-made backup without the instance identity); `is not a complete backup
+set` (one of the four files is missing); `no complete backup found` (run
+`./setup.sh backup` first); `aborted; nothing was restored` (you did not type
+`RESTORE`); `could not empty <dir>` (files owned by another user; run
+`./setup.sh down && ./setup.sh up` to migrate ownership, then retry). All of these happen
+before the instance is touched.
+
+### `up` cannot reach `systemd --user`
+
+**Cause:** no user session bus, e.g. a `sudo`/`su` shell or a cron job without
+`XDG_RUNTIME_DIR`. **Fix:** log in as the user that owns the stack (a plain `sudo` or `su` shell has no
+user session) and retry; with lingering enabled the user manager runs even when you
+are not logged in.
 
 ### "Access through untrusted domain"
 
@@ -706,17 +939,6 @@ You reached Nextcloud by a name or IP that is not in
 ```bash
 ./setup.sh occ config:system:get trusted_domains   # see what is allowed
 # add the new host/IP to NEXTCLOUD_TRUSTED_DOMAINS in .env, then:
-./setup.sh restart
-```
-
-### Port 8080 is already in use
-
-`setup.sh` detects this during preflight and tells you which process holds it.
-Either free the port or pick another (the same applies to
-`NEXTCLOUD_HTTPS_PORT`, default `52443`):
-
-```bash
-# edit NEXTCLOUD_PORT in .env, then
 ./setup.sh restart
 ```
 
@@ -825,6 +1047,35 @@ about the boundaries matters more than adding complexity:
 4. **The `admin` password is printed by `up`** and stored in `.env` and in every
    `backups/*/env.backup`. Treat backups as sensitive.
 
+### Security model: secrets and processes
+
+- **Secrets.** `.env` (mode `0600`) is the single source of truth. `setup.sh` derives
+  one env file per service into `.run/` (directory `0700`, files `0600`) and each
+  service receives only what it needs: the **database root password exists only in the
+  `db` container**; `app` gets the database user's password, not root's; `cron` gets
+  only the timezone; `caddy` only its upstream. No secret is written into a unit file.
+- **Administrator credentials are short-lived in the environment.** They are put into
+  the `app` environment *only until `config.php` says the instance is installed*.
+  `scrub_install_secrets` then rewrites `app.env` without them and restarts `app`
+  once, so the running container never keeps the admin password (check with
+  `podman inspect nextcloud-app`). Later `up`/`restart` runs never put them back.
+  `./setup.sh creds` still reads the password from `.env`.
+- **Process model.** `db`, `redis` and `app` run unprivileged as your user (through
+  `keep-id`). `caddy`'s container-root maps to your user. The one exception is
+  `cron`: its `crond` runs as container-root (`User=root`), which under `keep-id` is a
+  host **sub-uid**, under an init (`RunInit=yes`) so it stops in about 0.3 s; it
+  writes nothing, and the jobs it launches run as the web account, i.e. you.
+- **Containers are not privileged.** No `--privileged`, no added capabilities or
+  devices, no host network/PID/IPC/user namespace, no `unconfined` options and no
+  container-engine socket (verified by `tests/t10-security.sh`). Host bind mounts are
+  limited to the data directory, `.run/redis-session.ini` and read-only `Caddyfile`,
+  `tls/` and the hooks.
+- **Discovery stays on HTTPS.** Caddy answers `/.well-known/caldav` and
+  `/.well-known/carddav` with **relative** 301 redirects to `/remote.php/dav/`.
+  Apache's own redirect is absolute and built from its plain-HTTP scheme, which would
+  downgrade iOS and DAVx5 clients to `http://`.
+- **Backups contain secrets** (`env.backup`) and user data; each directory is `0700`.
+
 **If you want to go further**, in ascending order of effort:
 
 - Add a firewall rule restricting ports 8080 and 52443 to your LAN subnet.
@@ -832,6 +1083,36 @@ about the boundaries matters more than adding complexity:
   (HTTPS) is reachable (`NEXTCLOUD_BIND` cannot do this: it covers both ports).
 - Then, and only then, consider exposing it beyond the LAN — at which point you
   should also review Nextcloud's hardening guide.
+
+---
+
+## Host tuning (optional)
+
+Two kernel settings improve behaviour but need root, so `setup.sh` never changes
+them; `./setup.sh status` prints the exact commands when a value is below the
+recommendation (and prints nothing when both are fine).
+
+| Setting | Recommended | Why |
+| --- | --- | --- |
+| `vm.overcommit_memory` | `1` | Redis background saves fork the process; without overcommit a fork can fail under memory pressure. |
+| `net.core.rmem_max` | at least `7340032` (the advice suggests `7500000`) | QUIC (HTTP/3) wants larger UDP receive buffers; Caddy logs a warning when they are small. |
+
+Apply for the running system:
+
+```bash
+sudo sysctl vm.overcommit_memory=1
+sudo sysctl net.core.rmem_max=7500000
+```
+
+Persist across reboots:
+
+```bash
+printf 'vm.overcommit_memory = 1\nnet.core.rmem_max = 7500000\n' | sudo tee /etc/sysctl.d/90-nextcloud.conf
+sudo sysctl --system
+```
+
+Remove the file (and run `sudo sysctl --system`, or reboot) to undo the persistence.
+The stack works without either setting.
 
 ---
 
@@ -920,15 +1201,38 @@ podman rmi docker.io/nextcloud/all-in-one:latest docker.io/library/nextcloud:lat
 
 ## Uninstall
 
+Three commands, from least to most destructive:
+
+| Command | Services | Units and `.run/` | Named volumes and network | Data directory | `.env`, `tls/`, `backups/` |
+| --- | --- | --- | --- | --- | --- |
+| `./setup.sh down` | stopped; the containers are **removed** when they stop (Quadlet runs them with `--rm`) | kept | kept (volumes, images) | kept | kept |
+| `./setup.sh uninstall` | same as `down` | **removed** | kept; the Podman network object is left | kept | kept |
+| `./setup.sh destroy` | same as `down` | kept | **removed**, including the network | kept | kept |
+
+`uninstall` stops the services, removes the containers, deletes the rendered
+`nextcloud*.container` and `nextcloud*.network` files from
+`~/.config/containers/systemd/`, deletes `.run/` (the generated env files),
+reloads systemd and clears failed states. Because the volumes, the data directory,
+`.env` and `tls/` stay, `./setup.sh up` reinstalls the *same* instance (same
+instance id, same files). `destroy` asks you to type `DELETE`, removes the four
+named volumes and the network and **verifies** they are gone; it is irreversible for
+the database and `config.php`, and it never deletes `DATA_HOST_PATH`.
+
+### Removing everything
+
 ```bash
-# Stop everything but keep all data and volumes
-./setup.sh down
-
-# Take a final backup, then remove containers, the four named volumes and the network
+# 1. A final backup, then remove containers, the four named volumes and the network.
 ./setup.sh backup
-./setup.sh destroy        # asks you to type DELETE; verifies everything is gone
+./setup.sh destroy                  # type DELETE; verifies that everything is gone
 
-# Optionally remove the images too (the Caddy one is a local build)
+# 2. Remove the units and the generated env files (.run/).
+./setup.sh uninstall
+
+# 3. Generated local files: the self-signed certificate and, if you want, the secrets.
+rm -rf tls
+# rm .env                           # also deletes the generated passwords
+
+# 4. Optionally remove the images (the Caddy one is a local build).
 podman rmi docker.io/library/nextcloud:35-apache \
            docker.io/library/mariadb:11 \
            docker.io/library/redis:7-alpine \
@@ -936,18 +1240,63 @@ podman rmi docker.io/library/nextcloud:35-apache \
            localhost/nextcloud-caddy-brotli:2 \
            docker.io/library/caddy:2 docker.io/library/caddy:2-builder
 
-# Optionally remove the rendered units (destroy leaves them installed), the
-# generated files, and lingering
-rm -f ~/.config/containers/systemd/nextcloud*.{container,network}
-systemctl --user daemon-reload
-rm -rf .run tls
-loginctl disable-linger "$USER"      # only if nothing else of yours needs it
+# 5. Lingering, only if nothing else of yours needs it.
+loginctl disable-linger "$USER"
+
+# 6. Optional host tuning you added earlier.
+sudo rm -f /etc/sysctl.d/90-nextcloud.conf
 ```
 
-`destroy` is guarded by a typed confirmation and is irreversible for the database
-and `config.php`. The **user files in `DATA_HOST_PATH` are never deleted** — remove
-that directory yourself if you want them gone. `backups/` on the host is **not**
-touched either, which is exactly why `config.tar.gz` is in it.
+Your files in `DATA_HOST_PATH` are never deleted by any command: remove that
+directory yourself if you want them gone. `backups/` is not touched either, which is
+exactly why `config.tar.gz` is in it. Anything outside this repository (a Samba share
+definition, firewall rules, other projects' containers) is not managed here.
+
+---
+
+## FAQ
+
+**Do I need a domain or a public certificate?** No. The instance is LAN-only; HTTPS
+uses a self-signed certificate. Exposing it to the internet is out of scope.
+
+**The browser warns about the certificate.** Expected: it is self-signed. Import
+`tls/site.crt` into the browser or OS trust store, or accept it once. The certificate
+is regenerated automatically when a host name or the LAN IP changes.
+
+**I edited `.env` and nothing changed.** Run `./setup.sh restart`. `up` warns about
+unapplied changes but does not apply them. The initial administrator password is the
+exception: it is read once at install; use `./setup.sh occ user:resetpassword`.
+
+**Where are my files?** In `DATA_HOST_PATH` on the host (default `data/` in the
+project), owned by you; share that directory over Samba or NFS if you like.
+
+**Why does `cron` run as root when everything else is you?** Busybox `crond` must call
+`setgroups()` to switch to the job's account and silently never runs jobs otherwise.
+Under `keep-id` that root is a host sub-uid; it writes nothing, and the jobs run as the
+web account, which is your user.
+
+**Can I change the ports?** Yes: `NEXTCLOUD_PORT` and `NEXTCLOUD_HTTPS_PORT` in `.env`,
+then `./setup.sh restart`. If you change `NEXTCLOUD_PORT`, also update
+`NEXTCLOUD_OVERWRITE_CLI_URL`.
+
+**How do I move to another machine?** `./setup.sh backup` here, copy `backups/<stamp>/`
+and the `.env` of that backup to the new machine's project, then `./setup.sh restore
+<stamp>` there (it brings the database and administrator credentials from the backup;
+ports and paths stay as configured on the new machine).
+
+**Is a backup safe to take while people use the instance?** A plain backup is a
+consistent database snapshot plus a live copy of the files. Use `backup --quiesce` for
+an exact point in time.
+
+**Does `uninstall` delete my data?** No. It removes units and generated files only.
+
+**Why is there no compose file?** The services are Podman Quadlet units run by
+`systemd --user`, which gives boot-time start, health-gated ordering and restarts
+without extra tooling.
+
+**Can I run the tests on my real instance?** `tests/run-all.sh --non-destructive` is
+safe; the full run restarts services, destroys and restores the instance, so take a
+backup first. See [Testing and evidence](#testing-and-evidence).
 
 ---
 
@@ -971,6 +1320,12 @@ touched either, which is exactly why `config.tar.gz` is in it.
 | Hex secrets from `openssl rand -hex 24` | No quoting or `pipefail` hazards when injected into `.env`; `od` fallback if `openssl` is absent. |
 | `help` reads its own header comment | Never prints stale text after the usage block is edited. |
 | `destroy` requires typing `DELETE` once | Destructive and irreversible; the confirmation exists for exactly one reason. |
+| `uninstall` keeps volumes, data, `.env` and `tls/` | Removing the integration with systemd must not be able to lose data; `up` brings the same instance back. |
+| Admin credentials only until installed | They are needed once, by the installer; leaving them in the container environment would expose them to `podman inspect` for the rest of its life. |
+| Drift warning instead of silent apply | `up` must not restart a healthy stack behind your back, but must not let you believe an edit is live either. |
+| `backup --quiesce` is opt-in | Maintenance mode interrupts users; it is only worth it when exact consistency matters. |
+| `restore` copies only the DB and admin credentials | The dump belongs to those credentials; ports, bind address, data path and images belong to the machine. |
+| Helper image is configurable (`HELPER_IMAGE`) | The backup/restore helpers need only `sh` and `tar`; offline hosts can point at a local image. |
 
 ---
 
@@ -1020,6 +1375,9 @@ below (sizes, counts, ids, versions) are **as of 2026-10-19**; re-run the checks
   `files:scan --all` reporting **5 folders / 64 files / 0 errors**. The data
   directory contains `appdata_ocvhsvisemzq`, matching the restored id.
 
+For current evidence rather than this dated snapshot, run `tests/run-all.sh` and read
+its `report.md` (see [Testing and evidence](#testing-and-evidence)).
+
 Versions in this run: Nextcloud 35.0.2.2 (PHP 8.5.11), MariaDB 11.8.9,
 Redis 7.4.9, Podman 5.7.1 (rootless), Caddy 2 (xcaddy + caddy-brotli),
 on ALT Starterkit 11 (kernel 6.12.61).
@@ -1048,8 +1406,35 @@ to `nextcloud-app:80`. Three things make it work, and each one has failed before
    `occ` for it. `overwriteprotocol` is deliberately *not* set, so plain HTTP on
    `:8080` keeps working alongside HTTPS.
 
+4. **CalDAV/CardDAV discovery stays on https.** The Caddyfile answers
+   `/.well-known/caldav` and `/.well-known/carddav` with relative `301` redirects
+   (`redir`) to `/remote.php/dav/`. Apache's own `.htaccess` redirect would be
+   absolute and built from its plain-HTTP scheme, downgrading clients to `http://`.
+
 Nextcloud is served at the root (`https://<host>:52443/`), not under
 `/nextcloud`.
+
+### Ports, HTTPS and HTTP/3
+
+- `app` publishes `NEXTCLOUD_BIND:NEXTCLOUD_PORT` → 80/tcp (plain HTTP).
+  `caddy` publishes `NEXTCLOUD_BIND:NEXTCLOUD_HTTPS_PORT` → 443 on **both tcp and udp**:
+  tcp carries HTTP/1.1 and HTTP/2, udp carries HTTP/3 (QUIC). Nothing else is
+  published: `db`, `redis` and `cron` live on the private bridge only, and there is no
+  port 80 listener in Caddy (`auto_https off`).
+- The certificate in `tls/` is self-signed (RSA 2048, SHA-256, 825 days). `ensure_tls`
+  regenerates it when it is missing, expires within 30 days or does not cover every
+  current name: `localhost`, `127.0.0.1`, the host name, `<host>.local`, the LAN IP and
+  every entry of `NEXTCLOUD_TRUSTED_DOMAINS`.
+- Test each protocol from the host:
+
+```bash
+curl --cacert tls/site.crt https://localhost:52443/status.php
+curl --cacert tls/site.crt --http2 -sI https://localhost:52443/login | head -1
+curl --cacert tls/site.crt --http3-only https://localhost:52443/status.php   # needs an HTTP/3 curl
+```
+
+- QUIC likes larger UDP buffers; see [Host tuning](#host-tuning-optional). If clients
+  cannot use UDP they silently fall back to HTTP/2 over tcp.
 
 ---
 
@@ -1058,14 +1443,14 @@ Nextcloud is served at the root (`https://<host>:52443/`), not under
 `./setup.sh up` renders `systemd/*.in` into `~/.config/containers/systemd/`
 (Podman Quadlet), and Podman's generator turns each file into a user service:
 
-| Unit | Role | Ordering |
+| Unit | Role | Ordering and health |
 | --- | --- | --- |
-| `nextcloud-network.service` | the `nextcloud-net` bridge | — |
-| `nextcloud-db.service` | MariaDB | `Notify=healthy` |
-| `nextcloud-redis.service` | Redis | `Notify=healthy` |
-| `nextcloud-app.service` | Nextcloud (Apache + PHP) | `Requires=` db + redis |
-| `nextcloud-cron.service` | background jobs | `Requires=` app |
-| `nextcloud-caddy.service` | HTTPS / HTTP/3 front end | `Wants=` app |
+| `nextcloud-network.service` | the `nextcloud-net` bridge | one-shot, stays `active (exited)` |
+| `nextcloud-db.service` | MariaDB, alias `db` | `Notify=healthy` (`healthcheck.sh --connect --innodb_initialized`) |
+| `nextcloud-redis.service` | Redis, alias `redis` | `Notify=healthy` (`redis-cli ping`) |
+| `nextcloud-app.service` | Nextcloud (Apache + PHP) | `Requires=` and `After=` db + redis; healthcheck `curl status.php` (300 s start period) |
+| `nextcloud-cron.service` | background jobs | `Requires=` and `After=` app; `RunInit=yes`; healthy while a `crond` process exists |
+| `nextcloud-caddy.service` | HTTPS / HTTP/3 front end | `Wants=` and `After=` app; `Pull=never`; healthcheck `wget` against Caddy's admin API (independent of the app) |
 
 All are `Restart=always` and `WantedBy=default.target`; `setup.sh` enables
 *lingering* for your user, so they start at boot without anyone logging in.
@@ -1078,11 +1463,34 @@ journalctl --user -u 'nextcloud-*' -f
 ./setup.sh status                          # summary incl. restart counters
 ```
 
+**Quadlet details.**
+
+- Templates use `@TOKEN@` placeholders; `render_units` fills them in, refuses to
+  write a unit with an unresolved placeholder and dry-runs Podman's Quadlet generator
+  so a broken unit fails at `up` time, not at boot.
+- Each container joins `nextcloud.network` (`nextcloud-net`); `db` and `redis` carry
+  `NetworkAlias=` `db` / `redis` because `config.php` stores those host names.
+- `app` and `cron` use `UserNS=keep-id:uid=<img uid>,gid=<img gid>`; `app` also sets
+  `Sysctl=net.ipv4.ip_unprivileged_port_start=0` so non-root Apache can bind port 80
+  inside its own network namespace (the host is unaffected).
+- Per-service env files (`.run/db.env`, `app.env`, `cron.env`, `caddy.env`) are loaded
+  with `EnvironmentFile=`; `.run/redis-session.ini` is the host-owned stand-in for the
+  file the image's entrypoint rewrites.
+- `TimeoutStartSec=900` for `app` (first install), `300` for `db`, `120` for `redis`.
+- `cron` uses `RunInit=yes`, `StopSignal=SIGTERM` and `SuccessExitStatus=143`, so it
+  stops in about 0.3 s and is not recorded as failed.
+- **Drift detection.** `up` and `restart` store a SHA-256 of the rendered units and env
+  files in `.run/.applied`; a later `up` that finds a different hash warns that
+  `./setup.sh restart` is needed.
+- `start_stack` clears stale failed states (`systemctl --user reset-failed`) before
+  starting.
+
 **Nothing is hard-coded.** The unit files are templates. Host paths, ports,
 image references, the host user, the subnet Nextcloud trusts as its proxy and the
 uid/gid of every service account are filled in at install time from `.env`, the
 running system or the images themselves. Secrets never enter the units: they go
-to per-service env files in `.run/` (mode `0600`, git-ignored).
+to per-service env files in `.run/` (mode `0600`, git-ignored). The
+[developer knobs](#developer-knobs) let tests render into throw-away directories.
 
 ## File ownership and SMB access
 
@@ -1100,7 +1508,7 @@ image** at install time (`id` inside it), never assumed. Override in `.env` only
 if an image changes its account: `APP_RUN_USER`, `APP_UID`, `APP_GID`, and the
 same for `DB_` and `REDIS_`.
 
-- `db`, `redis` and `app` (Apache, PHP, hooks) run entirely unprivileged.
+- `db`, `redis` and `app` (Apache, PHP, hooks) run entirely unprivileged as your user.
   `app` can do so because `redis-session.ini`, which the entrypoint rewrites on
   every start, is a host-owned file bind-mounted from `.run/`.
 - `caddy` runs as container-root, which rootless Podman already maps to you.
@@ -1117,6 +1525,10 @@ same for `DB_` and `REDIS_`.
 - `filesystem_check_changes=1` (set by the hook) makes files added over SMB show
   up in Nextcloud the moment a folder is listed.
 
+**How to see it.** `./setup.sh status` audits the data directory (entries not owned by
+you) and the four volumes (`podman unshare find`); `podman top nextcloud-app huser user
+pid args` shows the host uid of each process.
+
 To share the data over Samba, point a share at `DATA_HOST_PATH`, e.g.:
 
 ```ini
@@ -1125,17 +1537,57 @@ To share the data over Samba, point a share at `DATA_HOST_PATH`, e.g.:
    read only = No
 ```
 
-## Testing
+## Testing and evidence
 
-`tests/smb-live-test.sh [host]` is a **live** end-to-end test of the above. As the
-Samba account it uploads, overwrites, renames and deletes files and directories
-in the Nextcloud user's folder (including a 1 MiB binary and nested directories),
-checks the on-disk owner of everything, confirms Nextcloud sees SMB's changes over
-HTTPS/WebDAV, and does the reverse (Nextcloud creates, SMB modifies and deletes).
-It cleans up after itself and exits non-zero on any failure.
+The suite lives in `tests/` and is documented in [tests/README.md](tests/README.md).
+It is **live**: it tests the running units, containers, certificates and Nextcloud
+itself, not mocks.
 
-Credentials are read from the environment or `.env` (never committed):
-
+```bash
+tests/run-all.sh --non-destructive   # safe on a working instance
+tests/run-all.sh                     # full: also restarts, destroys and restores the stack
+tests/run-all.sh --list              # modules in run order
 ```
+
+| Module | Proves |
+| --- | --- |
+| `t01-static.sh` | syntax, template/token consistency, no hard-coded ids or paths, `.env.example` coverage, git hygiene, secret scan, file modes |
+| `t02-units.sh` | the Quadlet units, dependencies, health of all five services, restart policy, published ports, user namespaces |
+| `t03-ownership.sh` | every process and file belongs to you (the documented cron exception), host and container write-through |
+| `t04-https.sh` | Caddy: certificate and SANs, HTTP/2, HTTP/3, compression, no blank page, well-known redirects |
+| `t05-smb.sh` | the SMB live test passes and fails against the old ownership (negative control) |
+| `t06-nextcloud.sh` | WebDAV, OCS, Redis, MariaDB, hook settings, background jobs on the live instance |
+| `t07-resilience.sh` | idempotent `up`, drift, self-healing, boot order, `uninstall`/reinstall, busy port (destructive) |
+| `t08-backup-restore.sh` | `backup --quiesce`, refusal of bad backups, `restore`, `destroy` and restore from nothing (destructive) |
+| `t09-dynamic.sh` | `setup.sh` against synthetic configuration: nothing is hard-coded |
+| `t10-security.sh` | secrets handling, least privilege, exposure, hardening |
+| `t11-docs.sh` | this documentation matches the code |
+
+**The evidence package.** Each run writes `tests/evidence/<UTC time>/` (git-ignored,
+`tests/evidence/latest` links to the newest) with `report.md` (verdict and every check),
+`results.json` and `results.jsonl` (machine-readable, with the command, exit status and
+redacted output of each check), `modules.jsonl`, `module-exit.tsv`, `environment.txt`
+(host, tool versions, git commit, image digests, SHA-256 of the code under test),
+`logs/`, `console/` and `MANIFEST.sha256`. Verify it has not been altered with
+`cd tests/evidence/latest && sha256sum -c MANIFEST.sha256`. Secret values are redacted
+everywhere. A passing run can be archived under `docs/evidence/` with
+`tests/publish-evidence.sh`, which refuses a failing run, a broken manifest or any
+secret in the evidence. The latest vetted run is committed under `docs/evidence/`.
+Figures in this README come from such reports and carry their date.
+
+**The SMB test.** `tests/smb-live-test.sh [host]` is a **live** end-to-end test of the
+ownership fix. As the Samba account it uploads, overwrites, renames and deletes files
+and directories in the Nextcloud user's folder (including a 1 MiB binary and nested
+directories), checks the on-disk owner of everything, confirms Nextcloud sees SMB's
+changes over HTTPS/WebDAV, and does the reverse (Nextcloud creates, SMB modifies and
+deletes). It cleans up after itself and exits non-zero on any failure. Credentials are
+read from the environment or `.env` (never committed); see `SMB_TEST_*` and
+`NC_TEST_USER` in the [configuration reference](#configuration-reference-env):
+
+```text
 SMB_TEST_USER=...      SMB_TEST_PASSWORD=...      SMB_TEST_SHARE=Nextcloud
 ```
+
+`tests/run-all.sh` is the runner; options are `--quick`, `--non-destructive`, `--only`,
+`--skip`, `--list` and `--evidence-dir`. New behaviour needs a test: see
+[tests/README.md](tests/README.md) for the library API and how to write a module.

@@ -20,3 +20,8 @@ tls/
 .idea/
 *.swp
 .DS_Store
+
+# Local test-suite runs (a vetted run is committed under docs/evidence/ instead).
+tests/evidence/
+__pycache__/
+*.pyc
