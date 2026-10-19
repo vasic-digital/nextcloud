@@ -137,7 +137,7 @@ services:
       # container. Replace DATA_HOST_PATH to change the host path.
       - ${DATA_HOST_PATH}:/var/www/html/data
       # --- system needs — additional bind mount -----------------------------
-      - ${CONTAINER_HOST_PATH}:/var/www/html/container
+      
       # Idempotent configuration applied on every start.
       - ./config/nextcloud-hooks:/docker-entrypoint-hooks.d:ro
 
@@ -165,7 +165,7 @@ services:
       # User data — same bind mount as app
       - ${DATA_HOST_PATH}:/var/www/html/data
       # System needs — same bind mount as app
-      - ${CONTAINER_HOST_PATH}:/var/www/html/container
+      
 
 volumes:
   html:
